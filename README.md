@@ -22,6 +22,7 @@ This library exports the following GDAL functions:
 - GDALSetCacheMax
 - GDALAllRegister
 - GDALOpen
+- GDALOpenEx
 - GDALClose
 - GDALGetDriverByName
 - GDALCreate
@@ -68,6 +69,12 @@ This library exports the following GDAL functions:
 - CPLGetLastErrorMsg
 - CPLGetLastErrorNo
 - CPLGetLastErrorType
+- GDALRasterize
+- GDALRasterizeOptionsNew
+- GDALRasterizeOptionsFree
+- GDALDEMProcessing
+- GDALDEMProcessingOptionsNew
+- GDALDEMProcessingOptionsFree
 
 For documentation of these functions' behavior, please see the
 [GDAL documentation](http://www.gdal.org/gdal_8h.html)
