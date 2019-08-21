@@ -11,6 +11,7 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALSetCacheMax',\
   '_GDALAllRegister',\
   '_GDALOpen',\
+  '_GDALOpenEx',\
   '_GDALClose',\
   '_GDALGetDriverByName',\
   '_GDALCreate',\
@@ -56,7 +57,13 @@ EXPORTED_FUNCTIONS = "[\
   '_CPLErrorReset',\
   '_CPLGetLastErrorMsg',\
   '_CPLGetLastErrorNo',\
-  '_CPLGetLastErrorType'\
+  '_CPLGetLastErrorType',\
+  '_GDALRasterize',\
+  '_GDALRasterizeOptionsNew',\
+  '_GDALRasterizeOptionsFree',\
+  '_GDALDEMProcessing',\
+  '_GDALDEMProcessingOptionsNew',\
+  '_GDALDEMProcessingOptionsFree'\
 ]"
 
 export EMCONFIGURE_JS
