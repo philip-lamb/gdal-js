@@ -193,10 +193,10 @@ var Module = {
         FS.mkdir(TIFFPATH);
         FS.mkdir(PNGPATH);
 
-        progressFuncPtr = Runtime.addFunction(function(progress) {
+        progressFuncPtr = Module.addFunction(function(progress) {
             //console.log('progress', progress);
             return true; // GDAL will interrupt if this returns false
-        });
+        }, 'idii'); // The actual signature is int GDALDummyProgress(double, const char *, void *)
 
         initialized = true;
     }
@@ -441,8 +441,8 @@ function generateTile(tileObj, dataset) {
     // And cleanup
     // TODO: Make sure everything is cleaned up that can be (there's a lot)
     // TODO: And also figure out a clean way to architect this for wrapper functions
-    FS.unmount(WORKDIR);
-    FS.unmount(PNGPATH);
+    FS.unlink(pngFilePath);
+    FS.unlink(warpFilePath);
 }
 
 var activeDataset;

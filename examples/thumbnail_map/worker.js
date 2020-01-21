@@ -179,7 +179,7 @@ var Module = {
         // GDALSuggestedWarpOutput takes in a function pointer to a function that performs
         // transformation. This uses Emscripten's function pointer logic to add a pointer to the
         // appropriate function.
-        gdalGenImgProjTransformPtr = Runtime.addFunction(GDALGenImgProjTransform);
+        gdalGenImgProjTransformPtr = addFunction(GDALGenImgProjTransform, 'iiiiiiii');
 
         // Create a "directory" where user-selected files will be placed
         FS.mkdir(TIFFPATH);
@@ -346,6 +346,7 @@ function inspectTiff(files) {
         null
     );
     GDALClose(thumbDataset);
+    FS.unlink(thumbnailFilePath);
     console.log('Finished warping');
     /**************************************************************************************
      *                        Coordinates                                                 *
@@ -438,14 +439,10 @@ function inspectTiff(files) {
     postMessage({ coords: lngLatCoords, bytes: FS.readFile(pngFilePath, { encoding: 'binary' })});
 
     // And cleanup
-    // TODO: Make sure everything is cleaned up that can be (there's a lot)
-    // TODO: And also figure out a clean way to architect this for wrapper functions
     FS.unmount(TIFFPATH);
-    FS.unmount(WORKDIR);
-    FS.unmount(PNGPATH);
     GDALClose(dataset);
+    FS.unlink(pngFilePath);
     Module._free(thumbPtrOffset);
-    Module._free(affineOffset);
     Module._free(xCoordOffset);
     Module._free(yCoordOffset);
 }
