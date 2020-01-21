@@ -19,6 +19,5 @@ generating that library is not the purpose of these examples. Rather, it is to d
 patterns necessary for interacting with the Emscripten-generated GDAL API at the lowest level.
 
 In order to run these examples, make sure that `gdal.js`, `gdal.js.mem`, and `gdal.data` are
-available from the example directory (there are symlinks to these locations in the root of the
-repository for convenience). Then simply serve the directory from a webserver such as
-`python -m SimpleHTTPServer`.
+available from the example directory by building the project (there are symlinks to these locations
+in the root of the repository for convenience). Then run `python server.py` from this directory.
