@@ -4,4 +4,5 @@ set -e
 
 DIR="$(dirname "$0")"
 
-docker build -t gdaljs-build "${DIR}/.."
+docker build -t gdaljs-build "${DIR}/.." \
+    --build-arg EMSCRIPTEN_V=1.39.2

@@ -19,6 +19,8 @@ A += --without-dds
 A += --without-gta
 A += --with-libtiff=internal
 A += --with-geotiff=internal
+A += --with-rename-internal-libtiff-symbols=yes
+A += --with-rename-internal-libgeotiff-symbols=yes
 A += --with-jpeg=internal
 A += --without-jpeg12
 A += --without-gif

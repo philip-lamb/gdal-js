@@ -4,8 +4,8 @@ EMMAKE ?= emmake
 EMCC ?= emcc
 EMCONFIGURE ?= emconfigure
 EMCONFIGURE_JS ?= 0
-GDAL_EMCC_CFLAGS := -msse -O3
-PROJ_EMCC_CFLAGS := -msse -O3
+GDAL_EMCC_CFLAGS := -O3
+PROJ_EMCC_CFLAGS := -O3
 EXPORTED_FUNCTIONS = "[\
   '_CSLCount',\
   '_GDALSetCacheMax',\
@@ -66,6 +66,16 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALDEMProcessingOptionsFree'\
 ]"
 
+EXPORTED_RUNTIME_FUNCTIONS="[\
+  'setValue',\
+  'getValue',\
+  'ccall',\
+  'cwrap',\
+  'stringToUTF8',\
+  'lengthBytesUTF8',\
+  'addFunction'\
+]"
+
 export EMCONFIGURE_JS
 
 include gdal-configure.opt
@@ -76,16 +86,21 @@ include gdal-configure.opt
 # GDAL #
 ########
 gdal: gdal.js
-# Alias to easily remake PROJ.4
-proj4: $(PROJ4)/src/.libs/libproj.a
 
+# See https://github.com/emscripten-core/emscripten/issues/6090 for why disabling errors on undefined is necessary
+# I wasn't able to find an equivalent workaround to what was described in that thread using the GDAL build system.
 gdal.js: $(GDAL)/libgdal.a
 	EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMCC) $(GDAL)/libgdal.a $(PROJ4)/src/.libs/libproj.a -o gdal.js \
 		-s EXPORTED_FUNCTIONS=$(EXPORTED_FUNCTIONS) \
+		-s EXTRA_EXPORTED_RUNTIME_METHODS=$(EXPORTED_RUNTIME_FUNCTIONS) \
 		-s TOTAL_MEMORY=256MB \
-		-s WASM=1 \
-		-s NO_EXIT_RUNTIME=1 \
+		-s FORCE_FILESYSTEM=1 \
+		-s ERROR_ON_UNDEFINED_SYMBOLS=0 \
+		-s WARN_ON_UNDEFINED_SYMBOLS=1 \
 		-s RESERVED_FUNCTION_POINTERS=2 \
+		-s STRICT=1 \
+		-s WASM=1 \
+		-lworkerfs.js \
 		--preload-file $(GDAL)/data/pcs.csv@/usr/local/share/gdal/pcs.csv \
 		--preload-file $(GDAL)/data/gcs.csv@/usr/local/share/gdal/gcs.csv \
 		--preload-file $(GDAL)/data/gcs.override.csv@/usr/local/share/gdal/gcs.override.csv \
@@ -106,22 +121,12 @@ $(GDAL)/libgdal.a: $(PROJ4)/src/.libs/libproj.a $(GDAL)/config.status
 # TODO: Pass the configure params more elegantly so that this uses the
 # EMCONFIGURE variable
 $(GDAL)/config.status: $(GDAL)/configure
-	# PROJ4 needs to be built natively as part of the GDAL configuration process,
-	# but we don't want to nuke the Emscripten build if it happens to have been
-	# built first, so we need to copy it and then restore it once the GDAL
-	# configuration process is complete.
-	cp -R $(PROJ4) proj4_bak
-	cd $(PROJ4) && git clean -X -d --force .
-	cd $(PROJ4) && ./autogen.sh
-	cd $(PROJ4) && ./configure
-	cd $(PROJ4) && make
 	cd $(GDAL) && emconfigure ./configure $(GDAL_CONFIG_OPTIONS)
-	rm -rf $(PROJ4)
-	mv proj4_bak $(PROJ4)
 
 ##########
 # PROJ.4 #
 ##########
+# Alias to easily remake PROJ.4
 proj4: $(PROJ4)/src/.libs/libproj.a
 
 $(PROJ4)/src/.libs/libproj.a: $(PROJ4)/config.status
