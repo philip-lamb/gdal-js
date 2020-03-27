@@ -2,6 +2,12 @@ GDAL JS
 ==============
 An [Emscripten](https://github.com/kripken/emscripten) port of [GDAL](http://www.gdal.org) 2.1.
 
+Installation
+---------------
+```
+npm install gdal-js
+```
+
 Usage
 ---------------
 *Caution!* It is strongly recommended to run this code inside of a web worker.
