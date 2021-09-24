@@ -4,3 +4,8 @@
 *.so
 *~
 *.wasm
+.DS_Store
+gdal/a.out
+gdal/a.out.js
+proj4/a.out
+proj4/a.out.js

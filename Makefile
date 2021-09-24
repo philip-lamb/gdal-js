@@ -66,7 +66,52 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALRasterizeOptionsFree',\
   '_GDALDEMProcessing',\
   '_GDALDEMProcessingOptionsNew',\
-  '_GDALDEMProcessingOptionsFree'\
+  '_GDALDEMProcessingOptionsFree',\
+  '_GDALDatasetGetLayer',\
+  '_GDALDatasetGetLayerByName',\
+  '_GDALDatasetGetLayerCount',\
+  '_GDALDatasetExecuteSQL',\
+  '_OGR_L_GetNextFeature',\
+  '_OGR_L_GetExtent',\
+  '_OGR_L_GetLayerDefn',\
+  '_OGR_L_ResetReading',\
+  '_OGR_L_GetName',\
+  '_OGR_F_GetFieldAsInteger',\
+  '_OGR_F_GetFieldAsInteger64',\
+  '_OGR_F_GetFieldAsDouble',\
+  '_OGR_F_GetFieldAsString',\
+  '_OGR_F_GetFieldAsBinary',\
+  '_OGR_F_GetFieldAsDateTime',\
+  '_OGR_F_GetFieldAsDateTimeEx',\
+  '_OGR_F_GetFieldAsDoubleList',\
+  '_OGR_F_GetFieldAsIntegerList',\
+  '_OGR_F_GetFieldAsInteger64List',\
+  '_OGR_F_GetFieldAsStringList',\
+  '_OGR_F_GetGeometryRef',\
+  '_OGR_F_Destroy',\
+  '_OGR_FD_GetFieldCount',\
+  '_OGR_FD_GetFieldDefn',\
+  '_OGR_Fld_GetType',\
+  '_OGR_Fld_GetNameRef',\
+  '_OGR_G_GetGeometryType',\
+  '_OGR_G_GetX',\
+  '_OGR_G_GetY',\
+  '_OGR_G_GetPoint',\
+  '_OGR_G_GetPoints',\
+  '_OGR_G_GetPointCount',\
+  '_OGR_G_GetEnvelope',\
+  '_OGR_G_GetSpatialReference',\
+  '_OGR_G_Intersects',\
+  '_OGR_G_Simplify',\
+  '_OGR_G_Touches',\
+  '_OGR_G_Transform',\
+  '_OGR_G_Within',\
+  '_OGR_G_ExportToGML',\
+  '_OGR_G_ExportToJson',\
+  '_OGR_G_ExportToJsonEx',\
+  '_OGR_G_ExportToKML',\
+  '_OGR_G_ExportToWkb',\
+  '_OGR_G_ExportToWkt'\
 ]"
 
 EXPORTED_RUNTIME_FUNCTIONS="[\
