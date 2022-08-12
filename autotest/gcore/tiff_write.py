@@ -4334,6 +4334,7 @@ def tiff_write_102():
     ds = gdaltest.tiff_drv.Create('/vsimem/tiff_write_102.tif',1,1)
     sr = osr.SpatialReference()
     sr.ImportFromEPSG(7401)
+    name = sr.GetAttrValue('COMPD_CS')
     wkt = sr.ExportToWkt()
     ds.SetProjection(wkt)
     ds = None
@@ -4357,6 +4358,14 @@ def tiff_write_102():
 
     if wkt2.find('COMPD_CS') == 0:
         gdaltest.post_reason('got COMPD_CS, but did not expected it')
+        print(wkt2)
+        return 'fail'
+
+    sr2 = osr.SpatialReference()
+    sr2.SetFromUserInput(wkt1)
+    got_name = sr2.GetAttrValue('COMPD_CS')
+    if got_name != name:
+        gdaltest.post_reason('dit not get expected COMPD_CS name')
         print(wkt2)
         return 'fail'
 
@@ -5206,6 +5215,7 @@ def tiff_write_126():
                      (['COMPRESS=JPEG', 'INTERLEAVE=BAND', 'TILED=YES'], [49887,58937], [59311,2826], [30829,34806], [11664,58937]),
                      (['COMPRESS=JPEG', 'INTERLEAVE=BAND', 'BLOCKYSIZE=800'], [49887,58937], [59311,2826], [30829,34806], [11664,58937]),
                      (['COMPRESS=JPEG', 'INTERLEAVE=BAND', 'BLOCKYSIZE=32'], [49887,58937], [59311,2826], [30829,34806], [11664,58937]),
+                     (['COMPRESS=JPEG', 'BLOCKYSIZE=8'], [49887,58937], [59311,2826], [30829,34806], [11664,58937]),
                    ]
 
     for (options, cs1, cs2, cs3, cs4) in options_list:

@@ -83,6 +83,21 @@ GDALDriver::~GDALDriver()
 }
 
 /************************************************************************/
+/*                         GDALCreateDriver()                           */
+/************************************************************************/
+
+/**
+ * \brief Create a GDALDriver.
+ *
+ * Creates a driver in the GDAL heap.
+ */
+
+GDALDriverH CPL_STDCALL GDALCreateDriver()
+{
+    return new GDALDriver();
+}
+
+/************************************************************************/
 /*                         GDALDestroyDriver()                          */
 /************************************************************************/
 
@@ -664,7 +679,11 @@ GDALDataset *GDALDriver::DefaultCreateCopy( const char * pszFilename,
     if( eErr != CE_None )
     {
         delete poDstDS;
-        Delete( pszFilename );
+        if( !CPLFetchBool(papszOptions, "APPEND_SUBDATASET", false) )
+        {
+            // Only delete if creating a new file
+            Delete( pszFilename );
+        }
         return NULL;
     }
     else

@@ -4815,6 +4815,7 @@ char** VSIGSFSHandler::GetFileList( const char *pszDirname,
         }
         else
         {
+            CPLFree(sWriteFuncData.pBuffer);
             delete poHandleHelper;
             return NULL;
         }
