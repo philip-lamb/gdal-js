@@ -140,11 +140,11 @@ OGRSQLiteLayer* OGRSQLiteViewLayer::GetUnderlyingLayer()
                                             osUnderlyingTableName.c_str(),
                                             osUnderlyingGeometryColumn.c_str());
             poUnderlyingLayer =
-                (OGRSQLiteLayer*) poDS->GetLayerByName(osNewUnderlyingTableName);
+                (OGRSQLiteLayer*) poDS->GetLayerByNameNotVisible(osNewUnderlyingTableName);
         }
         if( poUnderlyingLayer == NULL )
             poUnderlyingLayer =
-                (OGRSQLiteLayer*) poDS->GetLayerByName(osUnderlyingTableName);
+                (OGRSQLiteLayer*) poDS->GetLayerByNameNotVisible(osUnderlyingTableName);
     }
     return poUnderlyingLayer;
 }
@@ -239,7 +239,7 @@ CPLErr OGRSQLiteViewLayer::EstablishFeatureDefn()
     std::set<CPLString> aosGeomCols;
     std::set<CPLString> aosIgnoredCols;
     aosGeomCols.insert(osGeomColumn);
-    BuildFeatureDefn( pszViewName, hColStmt, aosGeomCols, aosIgnoredCols );
+    BuildFeatureDefn( pszViewName, hColStmt, &aosGeomCols, aosIgnoredCols );
     sqlite3_finalize( hColStmt );
 
 /* -------------------------------------------------------------------- */
