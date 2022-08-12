@@ -634,17 +634,6 @@ GDALDataset *ROIPACDataset::Create( const char *pszFilename,
             return NULL;
         }
     }
-    else if ( strcmp( pszExtension, "flg" ) == 0 )
-    {
-        if ( nBands != 1 || eType != GDT_Byte )
-        {
-            CPLError( CE_Failure, CPLE_AppDefined,
-                      "Attempt to create ROI_PAC %s dataset with an illegal "
-                      "number of bands (%d) and/or data type (%s).",
-                      pszExtension, nBands, GDALGetDataTypeName(eType) );
-            return NULL;
-        }
-    }
     else { /* Eeek */
         CPLError( CE_Failure, CPLE_AppDefined,
                   "Attempt to create ROI_PAC dataset with an unknown type (%s)",

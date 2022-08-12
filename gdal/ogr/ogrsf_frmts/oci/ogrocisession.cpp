@@ -324,51 +324,6 @@ int OGROCISession::EstablishSession( const char *pszUseridIn,
     CSLDestroy( papszNameValue );
 
 /* -------------------------------------------------------------------- */
-/*      Get server version information                                  */
-/* -------------------------------------------------------------------- */
-
-    char szVersionTxt[256];
-
-    OCIServerVersion( hSvcCtx, hError, (text*) szVersionTxt, 
-                    (ub4) sizeof(szVersionTxt), (ub1) OCI_HTYPE_SVCCTX );
-
-    char** papszNameValue = CSLTokenizeString2( szVersionTxt, " .", 
-                                                CSLT_STRIPLEADSPACES );
-
-    int count = CSLCount( papszNameValue);
-
-    for( int i = 0; i < count; i++)
-    {
-        if( EQUAL(papszNameValue[i], "Release") )
-        {
-            if( i + 1 < count )
-            {
-                nServerVersion = atoi(papszNameValue[i + 1]);
-            }
-            if( i + 2 < count )
-            {
-                nServerRelease = atoi(papszNameValue[i + 2]);
-            }
-            break;
-        }
-    }
-
-    CPLDebug("OCI", "From '%s' :", szVersionTxt);
-    CPLDebug("OCI", "Version:%d", nServerVersion);
-    CPLDebug("OCI", "Release:%d", nServerRelease);
-
-/* -------------------------------------------------------------------- */
-/*      Set maximun name length (before 12.2 ? 30 : 128)                */
-/* -------------------------------------------------------------------- */
-
-    if( nServerVersion >= 12 && nServerRelease >= 2 )
-    {
-        nMaxNameLength = 128;
-    }
-
-    CPLFree( papszNameValue );
-
-/* -------------------------------------------------------------------- */
 /*      Setting up the OGR compatible time formatting rules.            */
 /* -------------------------------------------------------------------- */
     OGROCIStatement oSetNLSTimeFormat( this );

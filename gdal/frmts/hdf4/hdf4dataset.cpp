@@ -298,7 +298,6 @@ int HDF4Dataset::GetDataTypeSize( int32 iNumType )
 
 double HDF4Dataset::AnyTypeToDouble( int32 iNumType, void *pData )
 {
-    CPL_STATIC_ASSERT(sizeof(GIntBig) == 8);
     switch ( iNumType )
     {
         case DFNT_INT8:

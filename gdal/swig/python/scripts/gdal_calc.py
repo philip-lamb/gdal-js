@@ -259,9 +259,6 @@ def doit(opts, args):
                 # make local namespace for calculation
                 local_namespace = {}
 
-                # modules available to calculation
-                local_namespace = {}
-
                 # fetch data for each input layer
                 for i,Alpha in enumerate(myAlphaList):
 

@@ -81,12 +81,6 @@ class OGRODSLayer : public OGRMemLayer
 
     virtual int                 TestCapability( const char * pszCap ) override;
 
-    virtual GIntBig             GetFeatureCount( int );
-
-    virtual OGRErr              SetAttributeFilter( const char *pszQuery );
-
-    virtual int                 TestCapability( const char * pszCap );
-
     /* For internal usage, for cell resolver */
     OGRFeature *        GetNextFeatureWithoutFIDHack() { return OGRMemLayer::GetNextFeature(); }
     OGRErr              SetFeatureWithoutFIDHack( OGRFeature *poFeature ) { SetUpdated(); return OGRMemLayer::ISetFeature(poFeature); }

@@ -539,9 +539,6 @@ GMLHandler::GMLHandler( GMLReader *poReader ) :
           GMLHandlerSortGeometryElements);
 
     stateStack[0] = STATE_TOP;
-
-    m_nSRSDimensionIfMissing = atoi(
-                    CPLGetConfigOption("GML_SRS_DIMENSION_IF_MISSING", "0") );
 }
 
 /************************************************************************/

@@ -1456,7 +1456,6 @@ OGRErr OGRGeoPackageTableLayer::ICreateFeature( OGRFeature *poFeature )
                   "CreateFeature");
         return OGRERR_FAILURE;
     }
-    }
 
     if( m_bDeferredCreation && RunDeferredCreationIfNecessary() != OGRERR_NONE )
         return OGRERR_FAILURE;
@@ -3432,9 +3431,12 @@ OGRErr OGRGeoPackageTableLayer::RunDeferredCreationIfNecessary()
 
     osCommand += ")";
 
-/************************************************************************/
-/*                      RunDeferredCreationIfNecessary()                */
-/************************************************************************/
+#ifdef DEBUG
+    CPLDebug( "GPKG", "exec(%s)", osCommand.c_str() );
+#endif
+    OGRErr err = SQLCommand(m_poDS->GetDB(), osCommand.c_str());
+    if ( OGRERR_NONE != err )
+        return OGRERR_FAILURE;
 
     /* Update gpkg_contents with the table info */
     const OGRwkbGeometryType eGType = GetGeomType();
@@ -3444,7 +3446,8 @@ OGRErr OGRGeoPackageTableLayer::RunDeferredCreationIfNecessary()
     else if( m_eASPatialVariant == OGR_ASPATIAL )
         err = m_poDS->CreateGDALAspatialExtension();
 
-    const char* pszLayerName = m_poFeatureDefn->GetName();
+    if ( err != OGRERR_NONE )
+        return OGRERR_FAILURE;
 
     if( bIsSpatial ||
         m_eASPatialVariant == OGR_ASPATIAL ||
@@ -3499,34 +3502,6 @@ OGRErr OGRGeoPackageTableLayer::RunDeferredCreationIfNecessary()
             }
         }
 #endif
-    }
-
-    if( bIsSpatial || m_bRegisterAsAspatial )
-    {
-        const char* pszIdentifier = GetMetadataItem("IDENTIFIER");
-        if( pszIdentifier == NULL )
-            pszIdentifier = pszLayerName;
-        const char* pszDescription = GetMetadataItem("DESCRIPTION");
-        if( pszDescription == NULL )
-            pszDescription = "";
-        const char* pszCurrentDate = CPLGetConfigOption("OGR_CURRENT_DATE", NULL);
-        CPLString osInsertGpkgContentsFormatting("INSERT INTO gpkg_contents "
-                 "(table_name,data_type,identifier,description,last_change,srs_id) VALUES "
-                "('%q','%q','%q','%q',");
-        osInsertGpkgContentsFormatting += ( pszCurrentDate ) ? "'%q'" : "%s";
-        osInsertGpkgContentsFormatting += ",%d)";
-
-        pszSQL = sqlite3_mprintf(
-            osInsertGpkgContentsFormatting.c_str(),
-            pszLayerName, (bIsSpatial ? "features": "aspatial"),
-            pszIdentifier, pszDescription,
-            pszCurrentDate ? pszCurrentDate : "strftime('%Y-%m-%dT%H:%M:%fZ','now')",
-            m_iSrs);
-
-        err = SQLCommand(m_poDS->GetDB(), pszSQL);
-        sqlite3_free(pszSQL);
-        if ( err != OGRERR_NONE )
-            return OGRERR_FAILURE;
     }
 
     ResetReading();

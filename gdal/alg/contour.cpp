@@ -135,7 +135,6 @@ class GDALContourGenerator
     double dfContourInterval;
     double dfContourOffset;
 
-
     CPLErr AddSegment( double dfLevel,
                        double dfXStart, double dfYStart,
                        double dfXEnd, double dfYEnd, int bLeftHigh );
@@ -1300,87 +1299,12 @@ int GDALContourItem::MergeCase(
 }
 
 /************************************************************************/
-/*                               DistanceSqr()                          */
-/************************************************************************/
-
-double GDALContourItem::DistanceSqr( 
-   double x0, double y0, double x1, double y1
-)
-{
-// --------------------------------------------------------------------
-// Coumpute the square of the euclidian distance between
-// (x0;y0)-(x1;y1)
-// --------------------------------------------------------------------
-   double dx = x0 - x1;
-   double dy = y0 - y1;
-
-   return (dx*dx + dy*dy);
-}
-
-/************************************************************************/
-/*                               MergeCase()                            */
-/************************************************************************/
-
-int GDALContourItem::MergeCase( 
-   double ax0, double ay0, double ax1, double ay1,
-   double bx0, double by0, double bx1, double by1
-)
-{
-    double dd;
-
-// --------------------------------------------------------------------
-// Try to find a match case between line ends
-// Calculate all possible distances and choose the closest
-// if less than JOIN_DIST
-// --------------------------------------------------------------------
-
-    // avoid sqrt()
-    const double jds = JOIN_DIST * JOIN_DIST;   
-
-    // case 1 e-b
-    int cs = 1;
-    double dmin = DistanceSqr (ax1, ay1, bx0, by0);
-
-    // case 2 b-e
-    dd = DistanceSqr (ax0, ay0, bx1, by1);
-    if (dd < dmin)
-    {
-        dmin = dd;
-        cs   = 2;
-    }
-
-    // case 3 e-e
-    dd = DistanceSqr (ax1, ay1, bx1, by1);
-    if (dd < dmin)
-    {
-        dmin = dd;
-        cs   = 3;
-    }
-
-    // case 4 b-b
-    dd = DistanceSqr (ax0, ay0, bx0, by0);
-    if (dd < dmin)
-    {
-        dmin = dd;
-        cs   = 4;
-    }
-
-    if (dmin > jds)
-        cs = 0;
-
-    return cs;
-}
-
-/************************************************************************/
 /*                               Merge()                                */
 /************************************************************************/
 
 int GDALContourItem::Merge( GDALContourItem *poOther )
 
 {
-    int rc = FALSE;
-    int i;
-
     if( poOther->dfLevel != dfLevel )
         return FALSE;
 

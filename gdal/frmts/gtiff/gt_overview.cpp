@@ -50,8 +50,6 @@
 #include "tifvsi.h"
 #include "xtiffio.h"
 
-#include <algorithm>
-
 CPL_CVSID("$Id$");
 
 // TODO(schwehr): Explain why 128 and not 127.

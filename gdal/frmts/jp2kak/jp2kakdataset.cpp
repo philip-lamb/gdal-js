@@ -149,9 +149,6 @@ JP2KAKRasterBand::JP2KAKRasterBand( int nBandIn, int nDiscardLevelsIn,
         int nBlueIndex = -1;
         int nLutIndex = 0;
         int nCSI = 0;
-#if KDU_MAJOR_VERSION > 7 || (KDU_MAJOR_VERSION == 7 && KDU_MINOR_VERSION >= 8)
-        int nFMT = 0;
-#endif
 
 #if KDU_MAJOR_VERSION > 7 || (KDU_MAJOR_VERSION == 7 && KDU_MINOR_VERSION >= 8)
         int nFMT = 0;

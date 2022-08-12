@@ -190,21 +190,6 @@ bool GDALGeoPackageDataset::ReOpenDB()
     return OpenOrCreateDB(SQLITE_OPEN_READWRITE);
 }
 
-bool GDALGeoPackageDataset::ReOpenDB()
-{
-    CPLAssert( hDB != NULL );
-    CPLAssert( m_pszFilename != NULL );
-
-#ifdef SPATIALITE_412_OR_LATER
-    FinishNewSpatialite();
-#endif
-    CloseDB();
-
-    /* And re-open the file */
-    return OpenOrCreateDB(SQLITE_OPEN_READWRITE);
-}
-
-
 /* Returns the first row of first column of SQL as integer */
 OGRErr GDALGeoPackageDataset::PragmaCheck(
     const char * pszPragma, const char * pszExpected, int nRowsExpected )
@@ -800,17 +785,6 @@ int GDALGeoPackageDataset::Open( GDALOpenInfo* poOpenInfo )
         {
             osSQL += " LIMIT ";
             osSQL += CPLSPrintf("%d", 1 + nTableLimit);
-        }
-
-        if( CPLTestBool(CSLFetchNameValueDef(poOpenInfo->papszOpenOptions, "LIST_ALL_TABLES", "YES")) )
-        {
-            // vgpkg_ is Spatialite virtual table
-            osSQL += "UNION ALL "
-                    "SELECT name, name, 0 as is_spatial, 0 AS xmin, 0 AS ymin, 0 AS xmax, 0 AS ymax, 0 AS is_gpkg_table "
-                    "FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'gpkg_%' "
-                    "AND name NOT LIKE 'vgpkg_%' "
-                    "AND name NOT LIKE 'rtree_%' AND name NOT LIKE 'sqlite_%' "
-                    "AND lower(name) NOT IN (SELECT lower(table_name) FROM gpkg_contents)";
         }
 
         SQLResult oResult;
@@ -4754,110 +4728,6 @@ OGRLayer * GDALGeoPackageDataset::ExecuteSQL( const char *pszSQLCommand,
             if( poSrcLayer )
             {
                 poSrcLayer->RenameTo( SQLUnescape(pszDstTableName) );
-                CSLDestroy(papszTokens);
-                return NULL;
-            }
-        }
-        CSLDestroy(papszTokens);
-    }
-
-    if( EQUAL(pszSQLCommand, "VACUUM") )
-    {
-        ResetReadingAllLayers();
-    }
-
-    if( EQUAL(pszSQLCommand, "BEGIN") )
-    {
-        SoftStartTransaction();
-        return NULL;
-    }
-    else if( EQUAL(pszSQLCommand, "COMMIT") )
-    {
-        SoftCommitTransaction();
-        return NULL;
-    }
-    else if( EQUAL(pszSQLCommand, "ROLLBACK") )
-    {
-        SoftRollbackTransaction();
-        return NULL;
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Special case DELLAYER: command.                                 */
-/* -------------------------------------------------------------------- */
-    if( STARTS_WITH_CI(pszSQLCommand, "DELLAYER:") )
-    {
-        const char *pszLayerName = pszSQLCommand + strlen("DELLAYER:");
-
-        while( *pszLayerName == ' ' )
-            pszLayerName++;
-
-        int idx = FindLayerIndex( pszLayerName );
-        if( idx >= 0 )
-            DeleteLayer( idx );
-        else
-            CPLError(CE_Failure, CPLE_AppDefined, "Unknown layer: %s",
-                     pszLayerName);
-        return NULL;
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Special case RECOMPUTE EXTENT ON command.                       */
-/* -------------------------------------------------------------------- */
-    if( STARTS_WITH_CI(pszSQLCommand, "RECOMPUTE EXTENT ON ") )
-    {
-        const char *pszLayerName = pszSQLCommand + strlen("RECOMPUTE EXTENT ON ");
-
-        while( *pszLayerName == ' ' )
-            pszLayerName++;
-
-        int idx = FindLayerIndex( pszLayerName );
-        if( idx >= 0 )
-        {
-            m_papoLayers[idx]->RecomputeExtent();
-        }
-        else
-            CPLError(CE_Failure, CPLE_AppDefined, "Unknown layer: %s",
-                     pszLayerName);
-        return NULL;
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Intercept DROP TABLE                                            */
-/* -------------------------------------------------------------------- */
-    if( STARTS_WITH_CI(pszSQLCommand, "DROP TABLE ") )
-    {
-        const char *pszLayerName = pszSQLCommand + strlen("DROP TABLE ");
-
-        while( *pszLayerName == ' ' )
-            pszLayerName++;
-
-        int idx = FindLayerIndex( SQLUnescapeDoubleQuote(pszLayerName) );
-        if( idx >= 0 )
-        {
-            DeleteLayer( idx );
-            return NULL;
-        }
-    }
-
-/* -------------------------------------------------------------------- */
-/*      Intercept ALTER TABLE ... RENAME TO                             */
-/* -------------------------------------------------------------------- */
-    if( STARTS_WITH_CI(pszSQLCommand, "ALTER TABLE ") )
-    {
-        char **papszTokens = SQLTokenize( pszSQLCommand );
-        /* ALTER TABLE src_table RENAME TO dst_table */
-        if( CSLCount(papszTokens) == 6 && EQUAL(papszTokens[3], "RENAME") &&
-            EQUAL(papszTokens[4], "TO") )
-        {
-            const char* pszSrcTableName = papszTokens[2];
-            const char* pszDstTableName = papszTokens[5];
-            OGRGeoPackageTableLayer* poSrcLayer =
-                (OGRGeoPackageTableLayer*)GetLayerByName(
-                        SQLUnescapeDoubleQuote(pszSrcTableName));
-            if( poSrcLayer )
-            {
-                poSrcLayer->RenameTo( SQLUnescapeDoubleQuote(pszDstTableName) );
                 CSLDestroy(papszTokens);
                 return NULL;
             }

@@ -361,17 +361,6 @@ static void RPCTransformPoint( const GDALRPCTransformInfo *psRPCTransformInfo,
         diffLong -= 360;
     }
 
-    // Avoid dateline issues
-    double diffLong = dfLong - psRPCTransformInfo->sRPC.dfLONG_OFF;
-    if( diffLong < -270 )
-    {
-        diffLong += 360;
-    }
-    else if( diffLong > 270 )
-    {
-        diffLong -= 360;
-    }
-
     const double dfNormalizedLong =
       diffLong / psRPCTransformInfo->sRPC.dfLONG_SCALE;
     const double dfNormalizedLat =

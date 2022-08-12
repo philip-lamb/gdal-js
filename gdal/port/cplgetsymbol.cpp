@@ -29,7 +29,6 @@
 
 #include "cpl_port.h"
 #include "cpl_conv.h"
-#include "cpl_string.h"
 
 #include <cstddef>
 

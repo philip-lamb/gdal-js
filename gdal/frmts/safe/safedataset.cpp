@@ -63,8 +63,6 @@ class SAFEDataset : public GDALPamDataset
 
     static CPLXMLNode * GetDataObject(CPLXMLNode *, const char *);
     static CPLXMLNode * GetDataObject(CPLXMLNode *, CPLXMLNode *, const char *);
-    
-    static void AddSubDataset(SAFEDataset *poDS, int iDSNum, CPLString osName, CPLString osDesc);
 
     static void AddSubDataset(SAFEDataset *poDS, int iDSNum, CPLString osName, CPLString osDesc);
 
@@ -536,36 +534,6 @@ GDALDataset *SAFEDataset::Open( GDALOpenInfo * poOpenInfo )
       osMDFilename = poOpenInfo->pszFilename;
     }
 
-    if (STARTS_WITH_CI(poOpenInfo->pszFilename, "SENTINEL1_DS:")) 
-    {
-      
-      osMDFilename = poOpenInfo->pszFilename + strlen("SENTINEL1_DS:");
-      const char* pszSelection1 = strrchr(osMDFilename.c_str(), ':');
-      if (pszSelection1 == NULL || pszSelection1 == osMDFilename.c_str() )
-      {
-          CPLError(CE_Failure, CPLE_AppDefined, "Invalid syntax for SENTINEL1_DS:");
-          return NULL;
-      }
-      osMDFilename.resize( pszSelection1 - osMDFilename.c_str() );
-      osSelectedSubDS1 = pszSelection1 + strlen(":");
-      
-      const char* pszSelection2 = strchr(osSelectedSubDS1.c_str(), '_');
-      if (pszSelection2 != NULL && pszSelection2 != pszSelection1 )
-      {
-          osSelectedSubDS1.resize( pszSelection2 - osSelectedSubDS1.c_str() );
-          osSelectedSubDS2 = pszSelection2 + strlen("_");
-      }
-
-      //update directory check:
-      VSIStatBufL  sStat;
-      if( VSIStatL( osMDFilename.c_str(), &sStat ) == 0 )
-          poOpenInfo->bIsDirectory = VSI_ISDIR( sStat.st_mode );
-      
-    } 
-    else {
-      osMDFilename = poOpenInfo->pszFilename;
-    }
-    
     if( poOpenInfo->bIsDirectory )
     {
         osMDFilename =
@@ -843,7 +811,7 @@ GDALDataset *SAFEDataset::Open( GDALOpenInfo * poOpenInfo )
                 "=product.imageAnnotation.imageInformation.azimuthPixelSpacing",
                 "UNK" );
             poDS->SetMetadataItem( "LINE_SPACING", pszLineSpacing );
-            
+
 /* -------------------------------------------------------------------- */
 /*      Form full filename (path of manifest.safe + measurement file).  */
 /* -------------------------------------------------------------------- */
@@ -885,51 +853,6 @@ GDALDataset *SAFEDataset::Open( GDALOpenInfo * poOpenInfo )
             CPLFree( pszFullname );
         }
     }
-    
-    //loop through all Swath/pols to add subdatasets
-    int iSubDS = 1;
-    for (std::map<CPLString, std::set<CPLString> >::iterator iterSwath=oMapSwaths2Pols.begin(); 
-         iterSwath!=oMapSwaths2Pols.end(); ++iterSwath) 
-    {
-        CPLString osSubDS1 = iterSwath->first;
-        CPLString osSubDS2;
-        
-        for (std::set<CPLString>::iterator iterPol=iterSwath->second.begin(); 
-            iterPol!=iterSwath->second.end(); ++iterPol)
-        {
-            if (!osSubDS2.empty()) {
-                osSubDS2 += "+";
-            }
-            osSubDS2 += *iterPol;
-            
-            //Create single band SubDataset
-            SAFEDataset::AddSubDataset(poDS, iSubDS,
-                CPLSPrintf("SENTINEL1_DS:%s:%s_%s", 
-                    osPath.c_str(), 
-                    osSubDS1.c_str(), 
-                    (*iterPol).c_str()),
-                CPLSPrintf("Single band with %s swath and %s polarisation",
-                    osSubDS1.c_str(),
-                    (*iterPol).c_str())
-            );
-            iSubDS++;
-            
-        }
-        
-        if (iterSwath->second.size()>1) {
-            //Create single band SubDataset with all polarisations
-            SAFEDataset::AddSubDataset(poDS, iSubDS,
-                CPLSPrintf("SENTINEL1_DS:%s:%s", 
-                    osPath.c_str(), 
-                    osSubDS1.c_str()),
-                CPLSPrintf("%s swath with all polarisations as bands",
-                    osSubDS1.c_str())
-            );
-            iSubDS++;
-        }
-        
-    }
-
 
     //loop through all Swath/pols to add subdatasets
     int iSubDS = 1;
@@ -1191,24 +1114,6 @@ void SAFEDataset::AddSubDataset(SAFEDataset *poDS, int iDSNum, CPLString osName,
         osName.c_str(),
         "SUBDATASETS");
 
-    poDS->GDALDataset::SetMetadataItem(
-        CPLSPrintf("SUBDATASET_%d_DESC", iDSNum),
-        osDesc.c_str(),
-        "SUBDATASETS");
-}
-
-
-/************************************************************************/
-/*                            AddSubDataset()                           */
-/************************************************************************/
-void SAFEDataset::AddSubDataset(SAFEDataset *poDS, int iDSNum, CPLString osName, CPLString osDesc)
-{
-    //Create SubDataset
-    poDS->GDALDataset::SetMetadataItem(
-        CPLSPrintf("SUBDATASET_%d_NAME", iDSNum),
-        osName.c_str(),
-        "SUBDATASETS");
-    
     poDS->GDALDataset::SetMetadataItem(
         CPLSPrintf("SUBDATASET_%d_DESC", iDSNum),
         osDesc.c_str(),

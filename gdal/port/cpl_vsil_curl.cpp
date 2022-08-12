@@ -2327,60 +2327,6 @@ static bool IsAllowedFilename( const char* pszFilename )
 }
 
 /************************************************************************/
-/*                        IsAllowedFilename()                           */
-/************************************************************************/
-
-static bool IsAllowedFilename( const char* pszFilename )
-{
-    const char* pszAllowedFilename = 
-        CPLGetConfigOption("CPL_VSIL_CURL_ALLOWED_FILENAME", NULL);
-    if( pszAllowedFilename != NULL )
-    {
-        return strcmp( pszFilename, pszAllowedFilename ) == 0;
-    }
-
-    /* Consider that only the files whose extension ends up with one that is */
-    /* listed in CPL_VSIL_CURL_ALLOWED_EXTENSIONS exist on the server */
-    /* This can speeds up dramatically open experience, in case the server */
-    /* cannot return a file list */
-    /* {noext} can be used as a special token to mean file with no extension */
-    /* For example : */
-    /* gdalinfo --config CPL_VSIL_CURL_ALLOWED_EXTENSIONS ".tif" /vsicurl/http://igskmncngs506.cr.usgs.gov/gmted/Global_tiles_GMTED/075darcsec/bln/W030/30N030W_20101117_gmted_bln075.tif */
-    const char* pszAllowedExtensions =
-        CPLGetConfigOption("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", NULL);
-    if (pszAllowedExtensions)
-    {
-        char** papszExtensions = CSLTokenizeString2( pszAllowedExtensions, ", ", 0 );
-        const size_t nURLLen = strlen(pszFilename);
-        bool bFound = false;
-        for(int i=0;papszExtensions[i] != NULL;i++)
-        {
-            const size_t nExtensionLen = strlen(papszExtensions[i]);
-            if( EQUAL(papszExtensions[i], "{noext}") )
-            {
-                const char* pszLastSlash = strrchr(pszFilename, '/');
-                if( pszLastSlash != NULL && strchr(pszLastSlash, '.') == NULL )
-                {
-                    bFound = true;
-                    break;
-                }
-            }
-            else if (nURLLen > nExtensionLen &&
-                EQUAL(pszFilename + nURLLen - nExtensionLen, papszExtensions[i]))
-            {
-                bFound = true;
-                break;
-            }
-        }
-
-        CSLDestroy(papszExtensions);
-
-        return bFound;
-    }
-    return TRUE;
-}
-
-/************************************************************************/
 /*                                Open()                                */
 /************************************************************************/
 

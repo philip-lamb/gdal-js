@@ -260,6 +260,7 @@ int SRTMHGTDataset::Identify( GDALOpenInfo * poOpenInfo )
   if( !EQUAL(fileName + strlen(fileName) - strlen(".hgt"), ".hgt") &&
       !EQUAL(fileName + strlen(fileName) - strlen(".hgt.gz"), ".hgt.gz") )
     return FALSE;
+
 /* -------------------------------------------------------------------- */
 /*      We check the file size to see if it is                          */
 /*      SRTM1 (below or above lat 50) or SRTM 3                         */

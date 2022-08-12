@@ -9124,7 +9124,6 @@ bool GTiffDataset::IsBlockAvailable( int nBlockId,
 /*      cache if need be.                                               */
 /************************************************************************/
 
-
 void GTiffDataset::FlushCache()
 
 {
@@ -15446,9 +15445,6 @@ GDALDataset *GTiffDataset::Create( const char * pszFilename,
     poDS->bCrystalized = false;
     poDS->nSamplesPerPixel = (uint16) l_nBands;
     poDS->osFilename = pszFilename;
- 
-    // Don't try to load external metadata files (#6597)
-    poDS->bIMDRPCMetadataLoaded = TRUE;
 
     // Don't try to load external metadata files (#6597).
     poDS->bIMDRPCMetadataLoaded = true;

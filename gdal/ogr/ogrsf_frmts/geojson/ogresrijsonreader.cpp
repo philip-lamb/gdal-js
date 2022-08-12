@@ -793,8 +793,6 @@ OGRGeometry* OGRESRIJSONReadLineString( json_object* poObj )
             }
         }
     }
-    if( poRet == NULL )
-        poRet = new OGRLineString();
 
     if( poRet == NULL )
         poRet = new OGRLineString();

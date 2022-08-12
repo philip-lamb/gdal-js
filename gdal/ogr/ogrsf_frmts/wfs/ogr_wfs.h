@@ -195,8 +195,6 @@ class OGRWFSLayer : public OGRLayer
 
     virtual OGRErr      SetIgnoredFields( const char **papszFields ) override;
 
-    virtual OGRErr      SetIgnoredFields( const char **papszFields );
-
     int                 HasLayerDefn() { return poFeatureDefn != NULL; }
 
     OGRFeatureDefn*     ParseSchema(CPLXMLNode* psSchema);

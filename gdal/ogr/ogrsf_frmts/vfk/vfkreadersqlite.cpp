@@ -131,7 +131,6 @@ VFKReaderSQLite::VFKReaderSQLite( const char *pszFileName ) :
     CPLDebug("OGR-VFK", "New DB: %s Spatial: %s",
              m_bNewDb ? "yes" : "no", m_bSpatial ? "yes" : "no");
 
-    char* pszErrMsg;
     if (SQLITE_OK != sqlite3_open(osDbName, &m_poDB)) {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Creating SQLite DB failed: %s",

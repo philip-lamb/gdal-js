@@ -53,7 +53,6 @@ GDALMDReaderPleiades::GDALMDReaderPleiades(const char *pszPath,
     m_osIMDSourceFilename( CPLString() ),
     m_osRPBSourceFilename( CPLString() )
 {
-    m_osBaseFilename = pszPath;
     const char* pszBaseName = CPLGetBasename(pszPath);
     size_t nBaseNameLen = strlen(pszBaseName);
     if( nBaseNameLen < 4 || nBaseNameLen > 511 )

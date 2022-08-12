@@ -818,8 +818,6 @@ OGRFeature *OGRDXFLayer::TranslateTEXT()
     
     osStyle += CPLString().Printf(",p:%d", nAnchorPosition);
 
-    osStyle += CPLString().Printf(",p:%d", nAnchorPosition);
-
     if( dfAngle != 0.0 )
     {
         CPLsnprintf(szBuffer, sizeof(szBuffer), "%.3g", dfAngle);

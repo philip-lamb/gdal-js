@@ -1,5 +1,5 @@
 /******************************************************************************
- * $Id: ogr_geopackage.h 35695 2016-10-11 17:39:33Z rouault $
+ * $Id$
  *
  * Project:  GeoPackage Translator
  * Purpose:  Definition of classes for OGR GeoPackage driver.
@@ -34,8 +34,6 @@
 #include "ogr_sqlite.h"
 #include "gpkgmbtilescommon.h"
 #include "ogrsqliteutility.h"
-
-#include <vector>
 
 #include <vector>
 
@@ -430,7 +428,6 @@ class OGRGeoPackageTableLayer CPL_FINAL : public OGRGeoPackageLayer
     OGRErr              GetExtent(OGREnvelope *psExtent, int bForce = TRUE) override;
     virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce) override
                 { return OGRGeoPackageLayer::GetExtent(iGeomField, psExtent, bForce); }
-    void                RecomputeExtent();
 
     void                PostInit();
     void                RecomputeExtent();
