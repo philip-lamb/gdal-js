@@ -1,10 +1,10 @@
 /******************************************************************************
- * Project:  PROJ.4
- * Purpose:  Implementation of pj_log() function.
- * Author:   Frank Warmerdam, warmerdam@pobox.com
  *
+ * Purpose:  PCIDSK ARRAY segment interface class.
+ * 
  ******************************************************************************
- * Copyright (c) 2010, Frank Warmerdam
+ * Copyright (c) 2010
+ * PCI Geomatics, 50 West Wilmot Street, Richmond Hill, Ont, Canada
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,49 +23,34 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
- *****************************************************************************/
+ ****************************************************************************/
+#ifndef INCLUDE_PCIDSK_ARRAY_H
+#define INCLUDE_PCIDSK_ARRAY_H
 
-#include <projects.h>
-#include <string.h>
-#include <stdarg.h>
+#include <string>
+#include <vector>
 
-/************************************************************************/
-/*                          pj_stderr_logger()                          */
-/************************************************************************/
-
-void pj_stderr_logger( void *app_data, int level, const char *msg )
-
+namespace PCIDSK
 {
-    (void) app_data;
-    (void) level;
-    fprintf( stderr, "%s\n", msg );
-}
-
 /************************************************************************/
-/*                               pj_log()                               */
+/*                              PCIDSK_ARRAY                            */
 /************************************************************************/
 
-void pj_log( projCtx ctx, int level, const char *fmt, ... )
+//! Interface to PCIDSK text segment.
 
-{
-    va_list args;
-    char *msg_buf;
+    class PCIDSK_DLL PCIDSK_ARRAY
+    {
+    public:
+        virtual	~PCIDSK_ARRAY() {}
 
-    if( level > ctx->debug_level )
-        return;
+        //ARRAY functions
+        virtual	unsigned char GetDimensionCount() const =0;
+        virtual	void SetDimensionCount(unsigned char nDim) =0;
+        virtual	const std::vector<unsigned int>& GetSizes() const =0;
+        virtual	void SetSizes(const std::vector<unsigned int>& oSizes) =0;
+        virtual	const std::vector<double>& GetArray() const =0;
+        virtual	void SetArray(const std::vector<double>& oArray) =0;
+    };
+} // end namespace PCIDSK
 
-    msg_buf = (char *) malloc(100000);
-    if( msg_buf == NULL )
-        return;
-
-    va_start( args, fmt );
-
-    /* we should use vsnprintf where available once we add configure detect.*/
-    vsprintf( msg_buf, fmt, args );
-
-    va_end( args );
-
-    ctx->logger( ctx->app_data, level, msg_buf );
-    
-    free( msg_buf );
-}
+#endif // INCLUDE_PCIDSK_ARRAY_H
