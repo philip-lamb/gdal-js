@@ -475,7 +475,10 @@ void ILI1Reader::ReadGeom( char **stgeom, int geomIdx, OGRwkbGeometryType eType,
           arc->addPoint(&ogrPoint);
           OGRErr error =  ogrCurve->addCurveDirectly(arc);
           if (error != OGRERR_NONE) {
-            CPLError(CE_Warning, CPLE_AppDefined, "Added geometry: %s", arc->exportToJson() );
+            char* pszJSon = arc->exportToJson();
+            CPLError(CE_Warning, CPLE_AppDefined, "Could not add geometry: %s",
+                     pszJSon ? pszJSon : "(null)" );
+            CPLFree(pszJSon);
             delete arc;
           }
           arc = NULL;

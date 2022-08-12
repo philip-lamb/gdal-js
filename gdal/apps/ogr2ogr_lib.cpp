@@ -1506,6 +1506,24 @@ void GDALVectorTranslateWrappedDataset:: ReleaseResultSet(
     delete poResultsSet;
 }
 
+/************************************************************************/
+/*                     OGR2OGRSpatialReferenceHolder                    */
+/************************************************************************/
+
+class OGR2OGRSpatialReferenceHolder
+{
+        OGRSpatialReference* m_poSRS;
+
+    public:
+        OGR2OGRSpatialReferenceHolder() : m_poSRS(NULL) {}
+       ~OGR2OGRSpatialReferenceHolder() { if( m_poSRS) m_poSRS->Release(); }
+
+       void assignNoRefIncrease(OGRSpatialReference* poSRS) {
+           CPLAssert(m_poSRS == NULL);
+           m_poSRS = poSRS;
+       }
+       OGRSpatialReference* get() { return m_poSRS; }
+};
 
 /************************************************************************/
 /*                     GDALVectorTranslateCreateCopy()                  */
@@ -1519,7 +1537,7 @@ static GDALDataset* GDALVectorTranslateCreateCopy(
 {
     const char* const szErrorMsg = "%s not supported by this output driver";
     GDALDataset* poWrkSrcDS = poDS;
-    OGRSpatialReference oOutputSRS; // Leave it in global scope
+    OGR2OGRSpatialReferenceHolder oOutputSRSHolder;
 
     if( psOptions->bSkipFailures )
     {
@@ -1710,8 +1728,9 @@ static GDALDataset* GDALVectorTranslateCreateCopy(
 
     if( psOptions->pszOutputSRSDef )
     {
-        if( oOutputSRS.SetFromUserInput( psOptions->pszOutputSRSDef ) !=
-                                                                OGRERR_NONE )
+        oOutputSRSHolder.assignNoRefIncrease(new OGRSpatialReference());
+        if( oOutputSRSHolder.get()->
+                SetFromUserInput( psOptions->pszOutputSRSDef ) != OGRERR_NONE )
         {
             CPLError( CE_Failure, CPLE_AppDefined,
                       "Failed to process SRS definition: %s",
@@ -1719,7 +1738,7 @@ static GDALDataset* GDALVectorTranslateCreateCopy(
             return NULL;
         }
         poWrkSrcDS = GDALVectorTranslateWrappedDataset::New(
-            poDS, &oOutputSRS, psOptions->bTransform);
+            poDS, oOutputSRSHolder.get(), psOptions->bTransform);
         if( poWrkSrcDS == NULL )
             return NULL;
     }

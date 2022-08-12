@@ -206,7 +206,7 @@ void OGRNTFDataSource::WorkupGeneric( NTFFileReader * poReader )
                   {
                       NTFAttDesc *poAttDesc =
                           poReader->GetAttDesc( papszTypes[iAtt] );
-                      if( poAttDesc != NULL )
+                      if( poAttDesc != NULL && papszValues[iAtt] != NULL )
                       {
                           poClass->CheckAddAttr( poAttDesc->val_type,
                                                  poAttDesc->finter,
@@ -328,9 +328,9 @@ static void AddGenericAttributes( NTFFileReader * poReader,
 /* -------------------------------------------------------------------- */
         if( iListField != -1 )
         {
-            char *pszAttLongName = NULL;
-            char *pszAttValue = NULL;
-            char *pszCodeDesc = NULL;
+            const char *pszAttLongName = NULL;
+            const char *pszAttValue = NULL;
+            const char *pszCodeDesc = NULL;
 
             poReader->ProcessAttValue( papszTypes[iAtt], papszValues[iAtt],
                                        &pszAttLongName, &pszAttValue,
@@ -642,7 +642,7 @@ static OGRFeature *TranslateGenericPoint( NTFFileReader *poReader,
         snprintf( szValType, sizeof(szValType), "%s", papoGroup[0]->GetField(9,10) );
         if( !EQUAL(szValType,"  ") )
         {
-            char *pszProcessedValue = NULL;
+            const char *pszProcessedValue = NULL;
 
             if( poReader->ProcessAttValue(szValType,
                                           papoGroup[0]->GetField(11,16),
@@ -694,7 +694,7 @@ static OGRFeature *TranslateGenericLine( NTFFileReader *poReader,
         snprintf( szValType, sizeof(szValType), "%s", papoGroup[0]->GetField(9,10) );
         if( !EQUAL(szValType,"  ") )
         {
-            char *pszProcessedValue = NULL;
+            const char *pszProcessedValue = NULL;
 
             if( poReader->ProcessAttValue(szValType,
                                           papoGroup[0]->GetField(11,16),
@@ -837,6 +837,13 @@ static OGRFeature *TranslateGenericCPoly( NTFFileReader *poReader,
     int         anPolyId[MAX_LINK*2];
 
     nNumLink = atoi(papoGroup[0]->GetField(9,12));
+    if( nNumLink < 0 || nNumLink > MAX_LINK )
+    {
+        CPLError( CE_Failure, CPLE_AppDefined,
+                    "MAX_LINK exceeded in ntf_generic.cpp." );
+        return poFeature;
+    }
+
     for( int iLink = 0; iLink < nNumLink; iLink++ )
     {
         anPolyId[iLink] = atoi(papoGroup[0]->GetField(13 + iLink*7,

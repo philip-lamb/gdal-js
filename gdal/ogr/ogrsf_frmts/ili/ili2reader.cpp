@@ -599,13 +599,10 @@ int ILI2Reader::SaveClasses( const char *pszFile = NULL ) {
     }
     catch (const DOMException& toCatch)
     {
-        char* msg = tr_strdup(toCatch.getMessage());
         // Can happen with createElement() in ILI2Handler::startElement()
         CPLError( CE_Failure, CPLE_AppDefined,
                   "DOMException: %s\n",
-                  msg);
-        CPLFree(msg);
-
+                  transcode(toCatch.getMessage()).c_str());
         return FALSE;
     }
     catch (const SAXException& toCatch)
@@ -613,7 +610,6 @@ int ILI2Reader::SaveClasses( const char *pszFile = NULL ) {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "Parsing failed: %s\n",
                   transcode(toCatch.getMessage()).c_str());
-
         return FALSE;
     }
 

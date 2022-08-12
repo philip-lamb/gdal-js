@@ -423,7 +423,7 @@ class OGRNTFFeatureClassLayer : public OGRLayer
 
     OGRNTFDataSource   *poDS;
 
-    int                 iCurrentFC;
+    GIntBig            iCurrentFC;
 
   public:
     explicit             OGRNTFFeatureClassLayer( OGRNTFDataSource * poDS );
@@ -460,7 +460,7 @@ class OGRNTFRasterLayer : public OGRLayer
     float              *pafColumn;
     int                 iColumnOffset;
 
-    int                 iCurrentFC;
+    GIntBig             iCurrentFC;
 
     int                 nDEMSample;
     int                 nFeatureCount;

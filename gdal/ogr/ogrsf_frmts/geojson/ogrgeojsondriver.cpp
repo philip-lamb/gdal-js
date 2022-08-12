@@ -58,6 +58,7 @@ class OGRESRIFeatureServiceLayer: public OGRLayer
     OGRESRIFeatureServiceDataset* poDS;
     OGRFeatureDefn* poFeatureDefn;
     GIntBig         nFeaturesRead;
+    GIntBig         nFirstFID;
     GIntBig         nLastFID;
     bool            bOtherPage;
     bool            bUseSequentialFID;

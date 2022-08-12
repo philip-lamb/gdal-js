@@ -472,7 +472,6 @@ int OGRSelafinDataSource::OpenTable(const char * pszFilename) {
                 if( VSIFSeekL(fp, poHeader->getPosition(i)+4, SEEK_SET)!=0 ||
                     Selafin::read_float(fp, dfTime)==0 )
                 {
-                    VSIFCloseL(fp);
                     CPLError( CE_Failure, CPLE_OpenFailed, "Failed to open %s, wrong format.\n", pszFilename);
                     return FALSE;
                 }

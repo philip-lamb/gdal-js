@@ -2504,8 +2504,8 @@ GByte *CPLHexToBinary( const char *pszHex, int *pnBytes )
 
     for( size_t i = 0; i < nHexLen/2; ++i )
     {
-        const unsigned char h1 = hex2char[static_cast<int>( pszHex[2*i] )];
-        const unsigned char h2 = hex2char[static_cast<int>( pszHex[2*i+1] )];
+        const unsigned char h1 = hex2char[pabyHex[2*i]];
+        const unsigned char h2 = hex2char[pabyHex[2*i+1]];
 
         // First character is high bits, second is low bits.
         pabyWKB[i] = static_cast<GByte>( (h1 << 4) | h2 );

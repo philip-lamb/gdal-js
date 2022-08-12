@@ -420,7 +420,7 @@ OGRFeature *OGRUKOOAP190Layer::GetNextRawFeature()
                 if ((bIsLeap && nDayOfYear >= 1 && nDayOfYear <= 366) ||
                     (!bIsLeap && nDayOfYear >= 1 && nDayOfYear <= 365))
                 {
-                    static const int leap_offset = bIsLeap ? 0 : 1;
+                    static const int leap_offset = bIsLeap ? 1 : 0;
                     while( nDayOfYear >
                            nDays +
                            mon_lengths[leap_offset][nMonth] )
@@ -605,7 +605,7 @@ OGRFeature *OGRSEGP1Layer::GetNextRawFeature()
         }
 
         /* Normal layout -> extract other fields */
-        if (nLatitudeCol == 27)
+        if (nLatitudeCol == 27 && nLineLen >= 26-1+1)
         {
             char szLineName[16 + 1];
             ExtractField(szLineName, pszLine, 2-1, 16);

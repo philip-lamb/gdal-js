@@ -61,6 +61,11 @@ void VSIInstallGSFileHandler( void )
     // Not supported.
 }
 
+void VSICurlClearCache( void )
+{
+    // Not supported.
+}
+
 /************************************************************************/
 /*                      VSICurlInstallReadCbk()                         */
 /************************************************************************/
@@ -329,6 +334,8 @@ public:
                                                 vsi_l_offset nFileOffsetStart );
 
     CURL               *GetCurlHandleFor( CPLString osURL );
+
+    void                ClearCache();
 };
 
 /************************************************************************/
@@ -1373,6 +1380,19 @@ size_t VSICurlHandle::Read( void * const pBufferIn, size_t const nSize,
     vsi_l_offset iterOffset = curOffset;
     while( nBufferRequestSize )
     {
+        // Don't try to read after end of file.
+        CachedFileProp* cachedFileProp = poFS->GetCachedFileProp(m_pszURL);
+        if( cachedFileProp->bHasComputedFileSize &&
+            iterOffset >= cachedFileProp->fileSize )
+        {
+            if( iterOffset == curOffset )
+            {
+                CPLDebug("VSICURL", "Request at offset " CPL_FRMT_GUIB
+                         ", after end of file", iterOffset);
+            }
+            break;
+        }
+
         const CachedRegion* psRegion = poFS->GetRegion(m_pszURL, iterOffset);
         if( psRegion == NULL )
         {
@@ -1901,40 +1921,7 @@ VSICurlFilesystemHandler::VSICurlFilesystemHandler()
 
 VSICurlFilesystemHandler::~VSICurlFilesystemHandler()
 {
-    for( int i=0; i < nRegions; i++ )
-    {
-        CPLFree(papsRegions[i]->pData);
-        CPLFree(papsRegions[i]);
-    }
-    CPLFree(papsRegions);
-
-    std::map<CPLString, CachedFileProp*>::const_iterator iterCacheFileSize;
-
-    for( iterCacheFileSize = cacheFileSize.begin();
-         iterCacheFileSize != cacheFileSize.end();
-         ++iterCacheFileSize )
-    {
-        delete iterCacheFileSize->second;
-    }
-
-    std::map<CPLString, CachedDirList*>::const_iterator iterCacheDirList;
-
-    for( iterCacheDirList = cacheDirList.begin();
-         iterCacheDirList != cacheDirList.end();
-         ++iterCacheDirList )
-    {
-        CSLDestroy(iterCacheDirList->second->papszFileList);
-        CPLFree(iterCacheDirList->second);
-    }
-
-    std::map<GIntBig, CachedConnection*>::const_iterator iterConnections;
-    for( iterConnections = mapConnections.begin();
-         iterConnections != mapConnections.end();
-         ++iterConnections )
-    {
-        curl_easy_cleanup(iterConnections->second->hCurlHandle);
-        delete iterConnections->second;
-    }
+    ClearCache();
 
     if( hMutex != NULL )
         CPLDestroyMutex( hMutex );
@@ -2222,6 +2209,53 @@ void VSICurlFilesystemHandler::InvalidateCachedFileProp( const char* pszURL )
 }
 
 /************************************************************************/
+/*                            ClearCache()                              */
+/************************************************************************/
+
+void VSICurlFilesystemHandler::ClearCache()
+{
+    CPLMutexHolder oHolder( &hMutex );
+
+    for( int i=0; i < nRegions; i++ )
+    {
+        CPLFree(papsRegions[i]->pData);
+        CPLFree(papsRegions[i]);
+    }
+    CPLFree(papsRegions);
+    nRegions = 0;
+    papsRegions = NULL;
+
+    std::map<CPLString, CachedFileProp*>::const_iterator iterCacheFileSize;
+    for( iterCacheFileSize = cacheFileSize.begin();
+         iterCacheFileSize != cacheFileSize.end();
+         ++iterCacheFileSize )
+    {
+        delete iterCacheFileSize->second;
+    }
+    cacheFileSize.clear();
+
+    std::map<CPLString, CachedDirList*>::const_iterator iterCacheDirList;
+    for( iterCacheDirList = cacheDirList.begin();
+         iterCacheDirList != cacheDirList.end();
+         ++iterCacheDirList )
+    {
+        CSLDestroy(iterCacheDirList->second->papszFileList);
+        CPLFree(iterCacheDirList->second);
+    }
+    cacheDirList.clear();
+
+    std::map<GIntBig, CachedConnection*>::const_iterator iterConnections;
+    for( iterConnections = mapConnections.begin();
+         iterConnections != mapConnections.end();
+         ++iterConnections )
+    {
+        curl_easy_cleanup(iterConnections->second->hCurlHandle);
+        delete iterConnections->second;
+    }
+    mapConnections.clear();
+}
+
+/************************************************************************/
 /*                          CreateFileHandle()                          */
 /************************************************************************/
 
@@ -2349,6 +2383,9 @@ VSIVirtualHandle* VSICurlFilesystemHandler::Open( const char *pszFilename,
                                                   const char *pszAccess,
                                                   bool bSetError )
 {
+    if( !STARTS_WITH_CI(pszFilename, GetFSPrefix()) )
+        return NULL;
+
     if( strchr(pszAccess, 'w') != NULL ||
         strchr(pszAccess, '+') != NULL )
     {
@@ -3345,6 +3382,9 @@ int VSICurlFilesystemHandler::Stat( const char *pszFilename,
                                     VSIStatBufL *pStatBuf,
                                     int nFlags )
 {
+    if( !STARTS_WITH_CI(pszFilename, GetFSPrefix()) )
+        return -1;
+
     const CPLString osFilename(pszFilename);
 
     memset(pStatBuf, 0, sizeof(VSIStatBufL));
@@ -4226,6 +4266,9 @@ VSIVirtualHandle* VSIS3FSHandler::Open( const char *pszFilename,
                                         const char *pszAccess,
                                         bool bSetError)
 {
+    if( !STARTS_WITH_CI(pszFilename, GetFSPrefix()) )
+        return NULL;
+
     if( strchr(pszAccess, 'w') != NULL || strchr(pszAccess, 'a') != NULL )
     {
         /*if( strchr(pszAccess, '+') != NULL)
@@ -4261,6 +4304,9 @@ VSIVirtualHandle* VSIS3FSHandler::Open( const char *pszFilename,
 int VSIS3FSHandler::Stat( const char *pszFilename, VSIStatBufL *pStatBuf,
                           int nFlags )
 {
+    if( !STARTS_WITH_CI(pszFilename, GetFSPrefix()) )
+        return -1;
+
     CPLString osFilename(pszFilename);
     if( osFilename.find('/', GetFSPrefix().size()) == std::string::npos )
         osFilename += "/";
@@ -5067,6 +5113,31 @@ void VSIInstallS3FileHandler( void )
 void VSIInstallGSFileHandler( void )
 {
     VSIFileManager::InstallHandler( "/vsigs/", new VSIGSFSHandler );
+}
+
+/************************************************************************/
+/*                         VSICurlClearCache()                          */
+/************************************************************************/
+
+/**
+ * \brief Clean local cache associated with /vsicurl/ (and related file systems)
+ *
+ * /vsicurl (and related file systems like /vsis3/ , /vsigs/) cache a number of
+ * metadata and data for faster execution in read-only scenarios. But when the
+ * content on the server-side may change during the same process, those
+ * mechanisms can prevent opening new files, or give an outdated version of them.
+ *
+ * @since GDAL 2.2.1
+ */
+
+void VSICurlClearCache( void )
+{
+    VSICurlFilesystemHandler *poFSHandler =
+        dynamic_cast<VSICurlFilesystemHandler*>(
+            VSIFileManager::GetHandler( "/vsis3/" ));
+
+    if( poFSHandler )
+        poFSHandler->ClearCache();
 }
 
 #endif /* HAVE_CURL */

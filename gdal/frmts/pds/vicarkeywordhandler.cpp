@@ -186,11 +186,13 @@ int VICARKeywordHandler::Ingest( VSILFILE *fp, GByte *pabyHeader )
     if( pch2 == NULL )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "END-OF-DATASET LABEL NOT FOUND!");
+        VSIFree(pszEOLHeader);
         return FALSE;
     }
     strncpy( keyval, pch1, std::min(static_cast<size_t>(pch2 - pch1),
                                     sizeof(keyval) - 1 ) );
     keyval[std::min( static_cast<size_t>(pch2-pch1), sizeof(keyval)-1 )] = '\0';
+    VSIFree(pszEOLHeader);
 
     int EOLabelSize = atoi( keyval );
     if( EOLabelSize <= 0 || EOLabelSize > 100 * 1024 * 1024 )
@@ -248,16 +250,19 @@ int VICARKeywordHandler::ReadPair( CPLString &osName, CPLString &osValue ) {
     osName = "";
     osValue = "";
 
-    if( !ReadWord( osName ) ) {
-    return FALSE;}
+    if( !ReadWord( osName ) )
+    {
+        // VICAR has no NULL string termination
+        if( *pszHeaderNext == '\0') {
+            osName="END";
+            return TRUE;
+        }
+        return FALSE;
+    }
 
     SkipWhite();
-
-    // VICAR has no NULL string termination
-    if( *pszHeaderNext == '\0') {
-        osName="END";
-        return TRUE;
-    }
+    if( *pszHeaderNext == '\0' )
+        return FALSE;
 
     pszHeaderNext++;
 
@@ -310,7 +315,7 @@ int VICARKeywordHandler::ReadWord( CPLString &osWord )
     SkipWhite();
 
     if( *pszHeaderNext == '\0')
-        return TRUE;
+        return FALSE;
 
     if( !( *pszHeaderNext != '='  && !isspace((unsigned char)*pszHeaderNext)) )
         return FALSE;
