@@ -1244,82 +1244,15 @@ void OGRXLSXDataSource::AnalyseWorkbookRels(VSILFILE* fpWorkbookRels)
 }
 
 /************************************************************************/
-/*                        startElementWBRelsCbk()                       */
+/*                           GetUnprefixed()                            */
 /************************************************************************/
 
-static void XMLCALL startElementWBRelsCbk(void *pUserData, const char *pszNameIn,
-                                    const char **ppszAttr)
+static const char* GetUnprefixed(const char* pszStr)
 {
-    ((OGRXLSXDataSource*)pUserData)->startElementWBRelsCbk(pszNameIn, ppszAttr);
-}
-
-void OGRXLSXDataSource::startElementWBRelsCbk(const char *pszNameIn,
-                                       const char **ppszAttr)
-{
-    if( bStopParsing ) return;
-
-    nWithoutEventCounter = 0;
-    if (strcmp(pszNameIn,"Relationship") == 0)
-    {
-        const char* pszId = GetAttributeValue(ppszAttr, "Id", NULL);
-        const char* pszType = GetAttributeValue(ppszAttr, "Type", NULL);
-        const char* pszTarget = GetAttributeValue(ppszAttr, "Target", NULL);
-        if (pszId && pszType && pszTarget &&
-            strstr(pszType, "/worksheet") != NULL)
-        {
-            oMapRelsIdToTarget[pszId] = pszTarget;
-        }
-    }
-}
-
-/************************************************************************/
-/*                          AnalyseWorkbookRels()                       */
-/************************************************************************/
-
-void OGRXLSXDataSource::AnalyseWorkbookRels(VSILFILE* fpWorkbookRels)
-{
-    oParser = OGRCreateExpatXMLParser();
-    XML_SetElementHandler(oParser, OGRXLSX::startElementWBRelsCbk, NULL);
-    XML_SetUserData(oParser, this);
-
-    VSIFSeekL( fpWorkbookRels, 0, SEEK_SET );
-
-    bStopParsing = false;
-    nWithoutEventCounter = 0;
-    nDataHandlerCounter = 0;
-
-    char aBuf[BUFSIZ];
-    int nDone = 0;
-    do
-    {
-        nDataHandlerCounter = 0;
-        unsigned int nLen =
-            (unsigned int)VSIFReadL( aBuf, 1, sizeof(aBuf), fpWorkbookRels );
-        nDone = VSIFEofL(fpWorkbookRels);
-        if (XML_Parse(oParser, aBuf, nLen, nDone) == XML_STATUS_ERROR)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "XML parsing of %s file failed : %s at line %d, column %d",
-                     "xl/_rels/workbook.xml.rels",
-                     XML_ErrorString(XML_GetErrorCode(oParser)),
-                     (int)XML_GetCurrentLineNumber(oParser),
-                     (int)XML_GetCurrentColumnNumber(oParser));
-            bStopParsing = true;
-        }
-        nWithoutEventCounter ++;
-    } while( !nDone && !bStopParsing && nWithoutEventCounter < 10 );
-
-    XML_ParserFree(oParser);
-    oParser = NULL;
-
-    if (nWithoutEventCounter == 10)
-    {
-        CPLError(CE_Failure, CPLE_AppDefined,
-                 "Too much data inside one element. File probably corrupted");
-        bStopParsing = true;
-    }
-
-    VSIFCloseL(fpWorkbookRels);
+    const char* pszColumn = strchr(pszStr, ':');
+    if( pszColumn )
+        return pszColumn + 1;
+    return pszStr;
 }
 
 /************************************************************************/
@@ -1338,7 +1271,7 @@ void OGRXLSXDataSource::startElementWBCbk(const char *pszNameIn,
     if( bStopParsing ) return;
 
     nWithoutEventCounter = 0;
-    if (strcmp(pszNameIn,"sheet") == 0)
+    if (strcmp(GetUnprefixed(pszNameIn),"sheet") == 0)
     {
         const char* pszSheetName = GetAttributeValue(ppszAttr, "name", NULL);
         const char* pszId = GetAttributeValue(ppszAttr, "r:id", NULL);
@@ -1440,11 +1373,15 @@ void OGRXLSXDataSource::startElementStylesCbk(const char *pszNameIn,
         if (pszFormatCode && nNumFmtId >= 164)
         {
             int bHasDate = strstr(pszFormatCode, "DD") != NULL ||
-                           strstr(pszFormatCode, "YY") != NULL;
-            int bHasTime = strstr(pszFormatCode, "HH") != NULL;
+                           strstr(pszFormatCode, "dd") != NULL ||
+                           strstr(pszFormatCode, "YY") != NULL ||
+                           strstr(pszFormatCode, "yy") != NULL;
+            int bHasTime = strstr(pszFormatCode, "HH") != NULL ||
+                           strstr(pszFormatCode, "hh") != NULL;
             if (bHasDate && bHasTime)
                 apoMapStyleFormats[nNumFmtId] = XLSXFieldTypeExtended(OFTDateTime,
-                                        strstr(pszFormatCode, "SS.000") != NULL );
+                                        strstr(pszFormatCode, "SS.000") != NULL ||
+                                        strstr(pszFormatCode, "ss.000") != NULL);
             else if (bHasDate)
                 apoMapStyleFormats[nNumFmtId] = XLSXFieldTypeExtended(OFTDate);
             else if (bHasTime)
@@ -1730,8 +1667,9 @@ static const char SCHEMA_PACKAGE_RS[] =
 
 static void WriteContentTypes(const char* pszName, int nLayers)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/[Content_Types].xml", pszName), "wb");
+    CPLString osTmpFilename(
+        CPLSPrintf("/vsizip/%s/[Content_Types].xml", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     // TODO(schwehr): Convert all strlen(XML_HEADER) to constexpr with
     // switch to C++11 or newer.
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
@@ -1758,8 +1696,8 @@ static void WriteContentTypes(const char* pszName, int nLayers)
 
 static void WriteApp(const char* pszName)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/docProps/app.xml", pszName), "wb");
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s/docProps/app.xml", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<Properties xmlns=\"%s/extended-properties\" "
                     "xmlns:vt=\"%s/docPropsVTypes\">\n", SCHEMA_OD, SCHEMA_OD);
@@ -1774,8 +1712,9 @@ static void WriteApp(const char* pszName)
 
 static void WriteCore(const char* pszName)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/docProps/core.xml", pszName), "wb");
+    CPLString osTmpFilename(
+        CPLSPrintf("/vsizip/%s/docProps/core.xml", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<cp:coreProperties xmlns:cp=\"%s/metadata/core-properties\" "
                     "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
@@ -1793,8 +1732,8 @@ static void WriteCore(const char* pszName)
 
 static void WriteWorkbook(const char* pszName, OGRDataSource* poDS)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/xl/workbook.xml", pszName), "wb");
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s/xl/workbook.xml", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<workbook %s xmlns:r=\"%s\">\n", MAIN_NS, SCHEMA_OD_RS);
     VSIFPrintfL(fp, "<fileVersion appName=\"Calc\"/>\n");
@@ -1859,9 +1798,9 @@ static void WriteLayer(const char* pszName, OGRLayer* poLayer, int iLayer,
                        std::map<std::string,int>& oStringMap,
                        std::vector<std::string>& oStringList)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/xl/worksheets/sheet%d.xml",
-                             pszName, iLayer + 1), "wb");
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s/xl/worksheets/sheet%d.xml",
+                             pszName, iLayer + 1));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<worksheet %s xmlns:r=\"%s\">\n", MAIN_NS, SCHEMA_OD_RS);
     /*
@@ -2028,8 +1967,9 @@ static void WriteSharedStrings(const char* pszName,
                                CPL_UNUSED std::map<std::string,int>& oStringMap,
                                std::vector<std::string>& oStringList)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/xl/sharedStrings.xml", pszName), "wb");
+    CPLString osTmpFilename(
+        CPLSPrintf("/vsizip/%s/xl/sharedStrings.xml", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<sst %s uniqueCount=\"%d\">\n",
                 MAIN_NS,
@@ -2052,8 +1992,8 @@ static void WriteSharedStrings(const char* pszName,
 
 static void WriteStyles(const char* pszName)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/xl/styles.xml", pszName), "wb");
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s/xl/styles.xml", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<styleSheet %s>\n", MAIN_NS);
     VSIFPrintfL(fp, "<numFmts count=\"4\">\n");
@@ -2108,9 +2048,9 @@ static void WriteStyles(const char* pszName)
 
 static void WriteWorkbookRels(const char* pszName, int nLayers)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/xl/_rels/workbook.xml.rels",
-                             pszName), "wb");
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s/xl/_rels/workbook.xml.rels",
+                             pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<Relationships xmlns=\"%s\">\n", SCHEMA_PACKAGE_RS);
     VSIFPrintfL(fp, "<Relationship Id=\"rId1\" Type=\"%s/styles\" Target=\"styles.xml\"/>\n", SCHEMA_OD_RS);
@@ -2131,8 +2071,8 @@ static void WriteWorkbookRels(const char* pszName, int nLayers)
 
 static void WriteDotRels(const char* pszName)
 {
-    VSILFILE* fp =
-        VSIFOpenL(CPLSPrintf("/vsizip/%s/_rels/.rels", pszName), "wb");
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s/_rels/.rels", pszName));
+    VSILFILE* fp = VSIFOpenL(osTmpFilename, "wb");
     VSIFWriteL(XML_HEADER, strlen(XML_HEADER), 1, fp);
     VSIFPrintfL(fp, "<Relationships xmlns=\"%s\">\n", SCHEMA_PACKAGE_RS);
     VSIFPrintfL(fp, "<Relationship Id=\"rId1\" Type=\"%s/officeDocument\" Target=\"xl/workbook.xml\"/>\n", SCHEMA_OD_RS);
@@ -2169,7 +2109,8 @@ void OGRXLSXDataSource::FlushCache()
     }
 
     /* Maintain new ZIP files opened */
-    VSILFILE* fpZIP = VSIFOpenExL(CPLSPrintf("/vsizip/%s", pszName), "wb", true);
+    CPLString osTmpFilename(CPLSPrintf("/vsizip/%s", pszName));
+    VSILFILE* fpZIP = VSIFOpenExL(osTmpFilename, "wb", true);
     if (fpZIP == NULL)
     {
         CPLError(CE_Failure, CPLE_FileIO,

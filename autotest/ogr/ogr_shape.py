@@ -5249,6 +5249,23 @@ def ogr_shape_107():
     return 'success'
 
 ###############################################################################
+# Test spatial + attribute filter
+
+def ogr_shape_108():
+
+    ds = ogr.Open('data/poly.shp')
+    lyr = ds.GetLayer(0)
+    lyr.SetSpatialFilterRect(479750.6875,4764702.0,479750.6875,4764702.0)
+    expected_fc = lyr.GetFeatureCount()
+    lyr.SetAttributeFilter("1=1")
+    if lyr.GetFeatureCount() != expected_fc:
+        gdaltest.post_reason('fail')
+        print(lyr.GetFeatureCount(), expected_fc)
+        return'fail'
+
+    return 'success'
+
+###############################################################################
 def ogr_shape_cleanup():
 
     if gdaltest.shape_ds is None:
@@ -5399,6 +5416,7 @@ gdaltest_list = [
     ogr_shape_105,
     ogr_shape_106,
     ogr_shape_107,
+    ogr_shape_108,
     ogr_shape_cleanup ]
 
 # gdaltest_list = [ ogr_shape_107 ]
