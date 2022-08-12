@@ -92,14 +92,12 @@ gdal: gdal.js
 gdal.js: $(GDAL)/libgdal.a
 	EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMCC) $(GDAL)/libgdal.a $(PROJ4)/src/.libs/libproj.a -o gdal.js \
 		-s EXPORTED_FUNCTIONS=$(EXPORTED_FUNCTIONS) \
-		-s EXTRA_EXPORTED_RUNTIME_METHODS=$(EXPORTED_RUNTIME_FUNCTIONS) \
+		-s EXPORTED_RUNTIME_METHODS=$(EXPORTED_RUNTIME_FUNCTIONS) \
+		-s ALLOW_MEMORY_GROWTH \
 		-s INITIAL_MEMORY=256MB \
-		-s WASM_MEM_MAX=2GB \
+		-s MAXIMUM_MEMORY=2GB \
 		-s FORCE_FILESYSTEM=1 \
-		-s ERROR_ON_UNDEFINED_SYMBOLS=0 \
-		-s WARN_ON_UNDEFINED_SYMBOLS=1 \
-		-s RESERVED_FUNCTION_POINTERS=2 \
-		-s STRICT=1 \
+		-s ALLOW_TABLE_GROWTH \
 		-s WASM=1 \
 		-lworkerfs.js \
 		--preload-file $(GDAL)/data/pcs.csv@/usr/local/share/gdal/pcs.csv \
