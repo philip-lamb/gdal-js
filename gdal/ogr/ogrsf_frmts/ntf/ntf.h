@@ -280,6 +280,8 @@ class NTFFileReader
     int               bCacheLines;
     int               nLineCacheSize;
     OGRGeometry     **papoLineCache;
+    
+    void              AddToIndexGroup( NTFRecord * poRecord );
 
   public:
                       NTFFileReader( OGRNTFDataSource * );
@@ -309,9 +311,9 @@ class NTFFileReader
 
     int               ProcessAttValue( const char *pszValType,
                                        const char *pszRawValue,
-                                       char **ppszAttName,
-                                       char **ppszAttValue,
-                                       char **ppszCodeDesc );
+                                       const char **ppszAttName,
+                                       const char **ppszAttValue,
+                                       const char **ppszCodeDesc );
 
     int               TestForLayer( OGRNTFLayer * );
     OGRFeature       *ReadOGRFeature( OGRNTFLayer * = NULL );

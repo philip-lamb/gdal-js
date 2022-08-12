@@ -3249,8 +3249,13 @@ CPLErr
     }
 
     *pnBuckets = nBuckets;
-    return GetHistogram( *pdfMin, *pdfMax, *pnBuckets, *ppanHistogram,
+    CPLErr eErr = GetHistogram( *pdfMin, *pdfMax, *pnBuckets, *ppanHistogram,
                          TRUE, FALSE, pfnProgress, pProgressData );
+    if( eErr != CE_None )
+    {
+        *pnBuckets = 0;
+    }
+    return eErr;
 }
 
 /************************************************************************/
@@ -5154,7 +5159,7 @@ void GDALRasterBand::ReportError(CPLErr eErrClass, CPLErrorNum err_no, const cha
     const char* pszDSName = poDS ? poDS->GetDescription() : "";
     if (strlen(fmt) + strlen(pszDSName) + 20 >= sizeof(szNewFmt) - 1)
         pszDSName = CPLGetFilename(pszDSName);
-    if (pszDSName[0] != '\0' &&
+    if (pszDSName[0] != '\0' && strchr(pszDSName, '%') == NULL &&
         strlen(fmt) + strlen(pszDSName) + 20 < sizeof(szNewFmt) - 1)
     {
         snprintf(szNewFmt, sizeof(szNewFmt), "%s, band %d: %s",

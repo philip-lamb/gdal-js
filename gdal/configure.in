@@ -109,7 +109,7 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
   [CXX=;])
 AC_LANG_POP([C++])
 
-if test "x$CXX" == x ; then
+if test "x$CXX" = x ; then
   AC_MSG_ERROR("You don't have a working C++ compiler.")
 fi
 
@@ -4383,7 +4383,7 @@ dnl building for Windows). This test should work for the case of
 dnl cross-compilation too.
 dnl ---------------------------------------------------------------------------
 case "${host_os}" in
-    cygwin* | mingw32* | pw32*)
+    cygwin* | mingw* | pw32*)
       EXE_EXT=.exe
       SO_EXT=dll
       ;;
@@ -4997,7 +4997,7 @@ dnl ---------------------------------------------------------------------------
 dnl Whether to include MRF in the build
 dnl ---------------------------------------------------------------------------
 
-AC_ARG_WITH([grib],
+AC_ARG_WITH([mrf],
             AS_HELP_STRING([--without-mrf],
                [Disable MRF driver]),,)
 

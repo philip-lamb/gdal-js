@@ -328,6 +328,8 @@ JPEG12_SUPPORTED = 1
 #TD_BASE = C:\warmerda\pkg\td_vc9
 #TD_FLAGS = -D_TOOLKIT_IN_DLL_
 #TD_INCLUDE = -I$(TD_BASE)\TD\Include -I$(TD_BASE)\TD\Extensions\ExServices
+# The following works for Teigha 4.2.2
+#TD_INCLUDE = -I$(TD_BASE)\Core\Include -I$(TD_BASE)\Core\Extensions\ExServices
 #TD_LIBDIR = $(TD_BASE)\lib\vc9dll
 
 # DWG/DXF support via DWGdirect from Open Design Alliance
@@ -378,6 +380,7 @@ JPEG12_SUPPORTED = 1
 #HDF4_PLUGIN = NO
 #HDF4_DIR =	D:\warmerda\HDF41r5
 #HDF4_LIB =	/LIBPATH:$(HDF4_DIR)\lib Ws2_32.lib
+#HDF4_INCLUDE = $(HDF4_DIR)\include
 # HDF4 library newer than 4.2.5 has a SDreset_maxopenfiles/SDget_maxopenfiles
 # interface which allows opening many HDF files simultaneously (the max
 # number of files was previously hardcoded and too low, smth. like 32).

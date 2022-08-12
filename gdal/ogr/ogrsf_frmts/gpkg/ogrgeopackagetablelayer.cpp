@@ -56,7 +56,7 @@ OGRErr OGRGeoPackageTableLayer::SaveExtent()
                 "UPDATE gpkg_contents SET "
                 "min_x = %g, min_y = %g, "
                 "max_x = %g, max_y = %g "
-                "WHERE table_name = '%q' AND "
+                "WHERE lower(table_name) = lower('%q') AND "
                 "Lower(data_type) = 'features'",
                 m_poExtent->MinX, m_poExtent->MinY,
                 m_poExtent->MaxX, m_poExtent->MaxY,
@@ -93,7 +93,7 @@ OGRErr OGRGeoPackageTableLayer::SaveTimestamp()
         pszSQL = sqlite3_mprintf(
                     "UPDATE gpkg_contents SET "
                     "last_change = '%q'"
-                    "WHERE table_name = '%q' AND "
+                    "WHERE lower(table_name) = lower('%q') AND "
                     "Lower(data_type) IN ('features', 'gdal_aspatial')",
                     m_pszTableName, pszCurrentDate);
     }
@@ -102,7 +102,7 @@ OGRErr OGRGeoPackageTableLayer::SaveTimestamp()
         pszSQL = sqlite3_mprintf(
                     "UPDATE gpkg_contents SET "
                     "last_change = strftime('%%Y-%%m-%%dT%%H:%%M:%%fZ','now')"
-                    "WHERE table_name = '%q' AND "
+                    "WHERE lower(table_name) = lower('%q') AND "
                     "Lower(data_type) IN ('features', 'gdal_aspatial')",
                     m_pszTableName);
     }
@@ -590,7 +590,7 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(bool bIsSpatial, bool bIsGpk
             "SELECT table_name, data_type, identifier, "
             "description, min_x, min_y, max_x, max_y, srs_id "
             "FROM gpkg_contents "
-            "WHERE table_name = '%q'"
+            "WHERE lower(table_name) = lower('%q')"
 #ifdef WORKAROUND_SQLITE3_BUGS
             " OR 0"
 #endif
@@ -645,7 +645,7 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(bool bIsSpatial, bool bIsGpk
                         "SELECT table_name, column_name, "
                         "geometry_type_name, srs_id, z, m "
                         "FROM gpkg_geometry_columns "
-                        "WHERE table_name = '%q'"
+                        "WHERE lower(table_name) = lower('%q')"
 #ifdef WORKAROUND_SQLITE3_BUGS
                         " OR 0"
 #endif
@@ -720,7 +720,7 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(bool bIsSpatial, bool bIsGpk
         OGRBoolean bFid = SQLResultGetValueAsInteger(&oResultTable, 5, iRecord);
         OGRFieldSubType eSubType;
         int nMaxWidth = 0;
-        const OGRFieldType oType = GPkgFieldToOGR(pszType, eSubType, nMaxWidth);
+        OGRFieldType oType = GPkgFieldToOGR(pszType, eSubType, nMaxWidth);
 
         /* Not a standard field type... */
         if ( (oType > OFTMaxType && osGeomColsType.size()) || EQUAL(osGeomColumnName, pszName) )
@@ -780,6 +780,15 @@ OGRErr OGRGeoPackageTableLayer::ReadTableDefinition(bool bIsSpatial, bool bIsGpk
         }
         else
         {
+            if( oType > OFTMaxType )
+            {
+                CPLDebug("GPKG",
+                         "For table %s, unrecognized type name %s for "
+                         "column %s. Using string type",
+                         m_pszTableName, pszType, pszName);
+                oType = OFTString;
+            }
+
             /* Is this the FID column? */
             if ( bFid && (oType == OFTInteger || oType == OFTInteger64) )
             {
@@ -1132,7 +1141,7 @@ OGRErr OGRGeoPackageTableLayer::CreateGeomField( OGRGeomFieldDefn *poGeomFieldIn
             return err;
 
         pszSQL = sqlite3_mprintf(
-            "UPDATE gpkg_contents SET data_type = 'features' WHERE table_name = '%q'",
+            "UPDATE gpkg_contents SET data_type = 'features' WHERE lower(table_name) = lower('%q')",
             GetName());
         err = SQLCommand(m_poDS->GetDB(), pszSQL);
         sqlite3_free(pszSQL);
@@ -1571,10 +1580,6 @@ OGRFeature* OGRGeoPackageTableLayer::GetNextFeature()
 
 OGRFeature* OGRGeoPackageTableLayer::GetFeature(GIntBig nFID)
 {
-    /* No FID, no answer. */
-    if (nFID == OGRNullFID || m_pszFidColumn == NULL )
-        return NULL;
-
     if( m_bDeferredCreation && RunDeferredCreationIfNecessary() != OGRERR_NONE )
         return NULL;
 
@@ -1588,7 +1593,7 @@ OGRFeature* OGRGeoPackageTableLayer::GetFeature(GIntBig nFID)
     soSQL.Printf("SELECT %s FROM \"%s\" WHERE \"%s\" = " CPL_FRMT_GIB,
                  m_soColumns.c_str(),
                  SQLEscapeDoubleQuote(m_pszTableName).c_str(),
-                 SQLEscapeDoubleQuote(m_pszFidColumn).c_str(), nFID);
+                 m_pszFidColumn ? SQLEscapeDoubleQuote(m_pszFidColumn).c_str() : "_rowid_", nFID);
 
     int err = sqlite3_prepare(m_poDS->GetDB(), soSQL.c_str(), -1, &m_poQueryStatement, NULL);
     if ( err != SQLITE_OK )
@@ -1786,7 +1791,7 @@ OGRErr OGRGeoPackageTableLayer::GetExtent(OGREnvelope *psExtent, int bForce)
                 "UPDATE gpkg_contents SET "
                 "min_x = NULL, min_y = NULL, "
                 "max_x = NULL, max_y = NULL "
-                "WHERE table_name = '%q' AND "
+                "WHERE lower(table_name) = lower('%q') AND "
                 "Lower(data_type) = 'features'",
                 m_pszTableName);
             SQLCommand( m_poDS->GetDB(), pszSQL);
@@ -2125,7 +2130,7 @@ void OGRGeoPackageTableLayer::CheckUnknownExtensions()
     if( m_poFeatureDefn->GetGeomFieldCount() == 0 )
     {
         pszSQL = sqlite3_mprintf(
-                    "SELECT extension_name, definition, scope FROM gpkg_extensions WHERE table_name='%q'"
+                    "SELECT extension_name, definition, scope FROM gpkg_extensions WHERE lower(table_name)=lower('%q')"
 #ifdef WORKAROUND_SQLITE3_BUGS
                     " OR 0"
 #endif
@@ -2134,8 +2139,8 @@ void OGRGeoPackageTableLayer::CheckUnknownExtensions()
     else
     {
         pszSQL = sqlite3_mprintf(
-                    "SELECT extension_name, definition, scope FROM gpkg_extensions WHERE (table_name='%q' "
-                    "AND column_name='%q' AND extension_name NOT IN ('gpkg_geom_CIRCULARSTRING', "
+                    "SELECT extension_name, definition, scope FROM gpkg_extensions WHERE (lower(table_name)=lower('%q') "
+                    "AND lower(column_name)=lower('%q') AND extension_name NOT IN ('gpkg_geom_CIRCULARSTRING', "
                     "'gpkg_geom_COMPOUNDCURVE', 'gpkg_geom_CURVEPOLYGON', 'gpkg_geom_MULTICURVE', "
                     "'gpkg_geom_MULTISURFACE', 'gpkg_geom_CURVE', 'gpkg_geom_SURFACE', "
                     "'gpkg_rtree_index', 'gpkg_geometry_type_trigger', 'gpkg_srs_id_trigger'))"
@@ -2207,8 +2212,8 @@ bool OGRGeoPackageTableLayer::CreateGeometryExtensionIfNecessary(OGRwkbGeometryT
 
     // Check first if the extension isn't registered
     char* pszSQL = sqlite3_mprintf(
-        "SELECT 1 FROM gpkg_extensions WHERE table_name = '%q' AND "
-        "column_name = '%q' AND extension_name = 'gpkg_geom_%s'",
+        "SELECT 1 FROM gpkg_extensions WHERE lower(table_name) = lower('%q') AND "
+        "lower(column_name) = lower('%q') AND extension_name = 'gpkg_geom_%s'",
          pszT, pszC, pszGeometryType);
     OGRErr err = OGRERR_NONE;
     SQLGetInteger(m_poDS->GetDB(), pszSQL, &err);
@@ -2251,8 +2256,8 @@ bool OGRGeoPackageTableLayer::HasSpatialIndex()
 
     /* Check into gpkg_extensions */
     char* pszSQL = sqlite3_mprintf(
-                 "SELECT * FROM gpkg_extensions WHERE (table_name='%q' "
-                 "AND column_name='%q' AND extension_name='gpkg_rtree_index')"
+                 "SELECT * FROM gpkg_extensions WHERE (lower(table_name)=lower('%q') "
+                 "AND lower(column_name)=lower('%q') AND extension_name='gpkg_rtree_index')"
 #ifdef WORKAROUND_SQLITE3_BUGS
                 " OR 0"
 #endif
@@ -2284,8 +2289,8 @@ bool OGRGeoPackageTableLayer::DropSpatialIndex(bool bCalledFromSQLFunction)
     const char* pszT = m_pszTableName;
     const char* pszC =m_poFeatureDefn->GetGeomFieldDefn(0)->GetNameRef();
     char* pszSQL = sqlite3_mprintf(
-        "DELETE FROM gpkg_extensions WHERE table_name='%q' "
-        "AND column_name='%q' AND extension_name='gpkg_rtree_index'",
+        "DELETE FROM gpkg_extensions WHERE lower(table_name)=lower('%q') "
+        "AND lower(column_name)=lower('%q') AND extension_name='gpkg_rtree_index'",
         pszT, pszC );
     SQLCommand(m_poDS->GetDB(), pszSQL);
     sqlite3_free(pszSQL);
@@ -2345,7 +2350,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
 
     SQLResult oResultTable;
     char* pszSQL = sqlite3_mprintf(
-        "SELECT * FROM sqlite_master WHERE name = '%q' "
+        "SELECT * FROM sqlite_master WHERE lower(name) = lower('%q') "
         "AND type IN ('table', 'view')",
          pszDstTableName);
     OGRErr err = SQLQuery(m_poDS->GetDB(), pszSQL, &oResultTable);
@@ -2372,7 +2377,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
 
     pszSQL = sqlite3_mprintf(
         "UPDATE gpkg_geometry_columns SET table_name = '%q' WHERE "
-        "table_name = '%q'",
+        "lower(table_name )= lower('%q')",
         pszDstTableName, m_pszTableName);
     OGRErr eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
     sqlite3_free(pszSQL);
@@ -2382,7 +2387,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
         // Rename the identifier if it defaulted to the table name
         pszSQL = sqlite3_mprintf(
                 "UPDATE gpkg_contents SET identifier = '%q' WHERE "
-                "table_name = '%q' AND identifier = '%q'",
+                "lower(table_name) = lower('%q') AND identifier = '%q'",
                 pszDstTableName, m_pszTableName, m_pszTableName);
         eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
         sqlite3_free(pszSQL);
@@ -2392,7 +2397,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
     {
         pszSQL = sqlite3_mprintf(
                 "UPDATE gpkg_contents SET table_name = '%q' WHERE "
-                "table_name = '%q'",
+                "lower(table_name )= lower('%q')",
                 pszDstTableName, m_pszTableName);
         eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
         sqlite3_free(pszSQL);
@@ -2402,7 +2407,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
     {
         pszSQL = sqlite3_mprintf(
             "UPDATE gpkg_extensions SET table_name = '%q' WHERE "
-            "table_name = '%q'",
+            "lower(table_name )= lower('%q')",
             pszDstTableName, m_pszTableName);
         eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
         sqlite3_free(pszSQL);
@@ -2412,7 +2417,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
     {
         pszSQL = sqlite3_mprintf(
             "UPDATE gpkg_metadata_reference SET table_name = '%q' WHERE "
-            "table_name = '%q'",
+            "lower(table_name )= lower('%q')",
             pszDstTableName, m_pszTableName);
         eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
         sqlite3_free(pszSQL);
@@ -2422,7 +2427,7 @@ void OGRGeoPackageTableLayer::RenameTo(const char* pszDstTableName)
     {
         pszSQL = sqlite3_mprintf(
             "UPDATE gpkg_data_columns SET table_name = '%q' WHERE "
-            "table_name = '%q'",
+            "lower(table_name )= lower('%q')",
             pszDstTableName, m_pszTableName);
         eErr = SQLCommand(m_poDS->GetDB(), pszSQL);
         sqlite3_free(pszSQL);
@@ -2661,7 +2666,7 @@ CPLString OGRGeoPackageTableLayer::GetColumnsOfCreateTable(const std::vector<OGR
     bool bNeedComma = false;
     if( m_pszFidColumn != NULL )
     {
-        pszSQL = sqlite3_mprintf("\"%w\" INTEGER PRIMARY KEY AUTOINCREMENT",
+        pszSQL = sqlite3_mprintf("\"%w\" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL",
                                 m_pszFidColumn);
         osSQL += pszSQL;
         sqlite3_free(pszSQL);
@@ -2845,7 +2850,7 @@ char **OGRGeoPackageTableLayer::GetMetadata( const char *pszDomain )
         "SELECT md.metadata, md.md_standard_uri, md.mime_type, "
         "mdr.reference_scope FROM gpkg_metadata md "
         "JOIN gpkg_metadata_reference mdr ON (md.id = mdr.md_file_id ) "
-        "WHERE mdr.table_name = '%q' ORDER BY md.id",
+        "WHERE lower(mdr.table_name) = lower('%q') ORDER BY md.id",
         m_pszTableName);
 
     SQLResult oResult;
@@ -3128,7 +3133,7 @@ bool OGRGeoPackageTableLayer::IsTable()
 {
     SQLResult oResultTable;
     char* pszSQL = sqlite3_mprintf(
-        "SELECT * FROM sqlite_master WHERE name = '%q' AND type = 'table'",
+        "SELECT * FROM sqlite_master WHERE lower(name) = lower('%q') AND type = 'table'",
          m_pszTableName);
     OGRErr err = SQLQuery(m_poDS->GetDB(), pszSQL, &oResultTable);
     sqlite3_free(pszSQL);
@@ -3209,8 +3214,8 @@ OGRErr OGRGeoPackageTableLayer::DeleteField( int iFieldToDelete )
     if( m_poDS->HasExtensionsTable() )
     {
         char* pszSQL = sqlite3_mprintf(
-            "DELETE FROM gpkg_extensions WHERE table_name = '%q' AND "
-            "column_name = '%q'",
+            "DELETE FROM gpkg_extensions WHERE lower(table_name) = lower('%q') AND "
+            "lower(column_name) = lower('%q')",
             m_pszTableName,
             m_poFeatureDefn->GetFieldDefn(iFieldToDelete)->GetNameRef() );
         eErr = SQLCommand( m_poDS->GetDB(), pszSQL );
@@ -3223,8 +3228,8 @@ OGRErr OGRGeoPackageTableLayer::DeleteField( int iFieldToDelete )
     if( m_poDS->HasDataColumnsTable() )
     {
         char* pszSQL = sqlite3_mprintf(
-            "DELETE FROM gpkg_data_columns WHERE table_name = '%q' AND "
-            "column_name = '%q'",
+            "DELETE FROM gpkg_data_columns WHERE lower(table_name) = lower('%q') AND "
+            "lower(column_name) = lower('%q')",
             m_pszTableName,
             m_poFeatureDefn->GetFieldDefn(iFieldToDelete)->GetNameRef() );
         eErr = SQLCommand( m_poDS->GetDB(), pszSQL );
@@ -3398,7 +3403,7 @@ OGRErr OGRGeoPackageTableLayer::AlterFieldDefn( int iFieldToAlter,
         char* pszSQL = sqlite3_mprintf(
             "SELECT name, type, sql FROM sqlite_master WHERE "
             "type IN ('trigger','index') "
-            "AND tbl_name='%q' AND sql LIKE '%%%q%%'",
+            "AND lower(tbl_name)=lower('%q') AND sql LIKE '%%%q%%'",
             m_pszTableName,
             SQLEscapeDoubleQuote(osOldColName).c_str() );
         eErr = SQLQuery(hDB, pszSQL, &oTriggers);
@@ -3493,7 +3498,7 @@ OGRErr OGRGeoPackageTableLayer::AlterFieldDefn( int iFieldToAlter,
     {
         char* pszSQL = sqlite3_mprintf(
             "UPDATE gpkg_extensions SET column_name = '%q' WHERE "
-            "table_name = '%q' AND column_name = '%q'",
+            "lower(table_name) = lower('%q') AND lower(column_name) = lower('%q')",
             poNewFieldDefn->GetNameRef(),
             m_pszTableName,
             osOldColName.c_str() );
@@ -3508,7 +3513,7 @@ OGRErr OGRGeoPackageTableLayer::AlterFieldDefn( int iFieldToAlter,
     {
         char* pszSQL = sqlite3_mprintf(
             "UPDATE gpkg_data_columns SET column_name = '%q' WHERE "
-            "table_name = '%q' AND column_name = '%q'",
+            "lower(table_name) = lower('%q') AND lower(column_name) = lower('%q')",
             poNewFieldDefn->GetNameRef(),
             m_pszTableName,
             osOldColName.c_str() );

@@ -41,9 +41,11 @@
 %apply (double *OUTPUT) { double *defaultval };
 
 %fragment("sv_to_utf8_string", "header") %{
-    char *sv_to_utf8_string(SV *sv, U8 **tmpbuf) {
-        /* if tmpbuf, only tmpbuf is freed; if not, ret is freed*/
+  char *sv_to_utf8_string(SV *sv, U8 **tmpbuf, bool *safefree = NULL) {
+        /* if tmpbuf is given, only tmpbuf needs to be freed, use Safefree!
+           if not, ret needs to be freed, if safefree use Safefree else use free! */
         char *ret;
+        if (safefree) *safefree = false;
         if (SvOK(sv)) {
             STRLEN len;
             ret = SvPV(sv, len);
@@ -54,6 +56,7 @@
                 } else {
                     ret = (char *)bytes_to_utf8((const U8*)ret, &len);
                 }
+                if (safefree) *safefree = true;
             } else {
                 if (!tmpbuf)
                     ret = strdup(ret);
@@ -960,9 +963,10 @@
                 AV *av = (AV*)(SvRV($input));
                 for (int i = 0; i < av_len(av)+1; i++) {
                     SV *sv = *(av_fetch(av, i, 0));
-                    char *tmp = sv_to_utf8_string(sv, NULL);
+                    bool sf;
+                    char *tmp = sv_to_utf8_string(sv, NULL, &sf);
                     $1 = CSLAddString($1, tmp);
-                    free(tmp);
+                    if (sf) Safefree(tmp); else free(tmp);
                 }
             } else if (SvTYPE(SvRV($input))==SVt_PVHV) {
                 HV *hv = (HV*)SvRV($input);
@@ -972,9 +976,10 @@
                 $1 = NULL;
                 hv_iterinit(hv);
                 while(sv = hv_iternextsv(hv, &key, &klen)) {
-                    char *tmp = sv_to_utf8_string(sv, NULL);
+                    bool sf;
+                    char *tmp = sv_to_utf8_string(sv, NULL, &sf);
                     $1 = CSLAddNameValue($1, key, tmp);
-                    free(tmp);
+                    if (sf) Safefree(tmp); else free(tmp);
                 }
             } else
                 do_confess(NEED_REF, 1);
@@ -1019,7 +1024,7 @@
 %typemap(freearg) (char **ignorechange)
 {
     /* %typemap(freearg) (char **ignorechange) */
-    if (tmpbuf$argnum) free(tmpbuf$argnum);
+    if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
 }
 
 /*
@@ -1095,7 +1100,7 @@
 %typemap(freearg) (tostring argin)
 {
     /* %typemap(freearg) (tostring argin) */
-    if (tmpbuf$argnum) free(tmpbuf$argnum);
+    if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
 }
 
 /*
@@ -1148,9 +1153,10 @@
 
         nType = SvIV(*(av_fetch(av,0,0)));
         SV *sv = *(av_fetch(av,1,0));
-        char *tmp = sv_to_utf8_string(sv, NULL);
+        bool sf;
+        char *tmp = sv_to_utf8_string(sv, NULL, &sf);
         psThisNode = CPLCreateXMLNode(NULL, (CPLXMLNodeType)nType, tmp);
-        free(tmp);
+        if (sf) Safefree(tmp); else free(tmp);
 
         for( iChild = 0; iChild < nChildCount; iChild++ )
         {
@@ -1524,7 +1530,7 @@ IF_UNDEF_NULL(const char *, target_key)
 %typemap(freearg) (const char* utf8_path)
 {
     /* %typemap(freearg) (const char* utf8_path) */
-    if (tmpbuf$argnum) free(tmpbuf$argnum);
+    if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
 }
 
 %typemap(in, numinputs=1, fragment="sv_to_utf8_string") (const char* layer_name) (U8 *tmpbuf = NULL)
@@ -1535,7 +1541,7 @@ IF_UNDEF_NULL(const char *, target_key)
 %typemap(freearg) (const char* layer_name)
 {
     /* %typemap(freearg) (const char* layer_name) */
-    if (tmpbuf$argnum) free(tmpbuf$argnum);
+    if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
 }
 
 %typemap(in, numinputs=1, fragment="sv_to_utf8_string") (const char* name) (U8 *tmpbuf = NULL)
@@ -1546,7 +1552,7 @@ IF_UNDEF_NULL(const char *, target_key)
 %typemap(freearg) (const char* name)
 {
     /* %typemap(freearg) (const char* name) */
-    if (tmpbuf$argnum) free(tmpbuf$argnum);
+    if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
 }
 
 %typemap(in,numinputs=0) (int *pnBytes) (int bytes)

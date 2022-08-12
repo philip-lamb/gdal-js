@@ -5592,7 +5592,9 @@ CPLErr GTiffOddBitsBand::IReadBlock( int nBlockXOff, int nBlockYOff,
         GByte *pabyImage;
 
         nWordBytes = poGDS->nBitsPerSample / 8;
-        pabyImage = poGDS->pabyBlockBuf + (nBand - 1) * nWordBytes;
+        pabyImage = poGDS->pabyBlockBuf +
+            ( ( poGDS->nPlanarConfig == PLANARCONFIG_SEPARATE ) ? 0 :
+              (nBand - 1) * nWordBytes );
         iSkipBytes = ( poGDS->nPlanarConfig == PLANARCONFIG_SEPARATE ) ?
             nWordBytes : poGDS->nBands * nWordBytes;
 
@@ -10530,8 +10532,11 @@ GDALDataset *GTiffDataset::OpenDir( GDALOpenInfo * poOpenInfo )
         pszFilename += strlen("GTIFF_RAW:");
     }
 
-    if( !STARTS_WITH_CI(pszFilename, "GTIFF_DIR:") )
+    if( !STARTS_WITH_CI(pszFilename, "GTIFF_DIR:") ||
+        pszFilename[strlen("GTIFF_DIR:")] == '\0' )
+    {
         return NULL;
+    }
 
 /* -------------------------------------------------------------------- */
 /*      Split out filename, and dir#/offset.                            */

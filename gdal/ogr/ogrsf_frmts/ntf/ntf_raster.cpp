@@ -126,6 +126,9 @@ void NTFFileReader::EstablishRasterAccess()
 /* -------------------------------------------------------------------- */
     delete poRecord;
 
+    if( !GDALCheckDatasetDimensions(nRasterXSize, nRasterYSize) )
+        return;
+
     panColumnOffset = (long *) CPLCalloc(sizeof(long),nRasterXSize);
 
     GetFPPos( panColumnOffset+0, NULL );
@@ -181,6 +184,8 @@ CPLErr NTFFileReader::ReadRasterColumn( int iColumn, float *pafElev )
 
     SetFPPos( panColumnOffset[iColumn], iColumn );
     poRecord = ReadRecord();
+    if( poRecord == NULL )
+        return CE_Failure;
 
     if( iColumn < nRasterXSize-1 )
     {
@@ -197,7 +202,7 @@ CPLErr NTFFileReader::ReadRasterColumn( int iColumn, float *pafElev )
         dfVOffset = atoi(poRecord->GetField(56,65));
         dfVScale = atoi(poRecord->GetField(66,75)) * 0.001;
 
-        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterYSize; iPixel++ )
         {
             pafElev[iPixel] = (float) (dfVOffset + dfVScale *
                 atoi(poRecord->GetField(84+iPixel*4,87+iPixel*4)));
@@ -209,7 +214,7 @@ CPLErr NTFFileReader::ReadRasterColumn( int iColumn, float *pafElev )
 /* -------------------------------------------------------------------- */
     else if( pafElev != NULL && GetProductId() == NPC_LANDFORM_PROFILE_DTM )
     {
-        for( int iPixel = 0; iPixel < nRasterXSize; iPixel++ )
+        for( int iPixel = 0; iPixel < nRasterYSize; iPixel++ )
         {
             pafElev[iPixel] = (float)
            (atoi(poRecord->GetField(19+iPixel*5,23+iPixel*5)) * GetZMult());
@@ -365,7 +370,7 @@ OGRFeature *OGRNTFRasterLayer::GetFeature( GIntBig nFeatureId )
 /*      Do we need to load a different column.                          */
 /* -------------------------------------------------------------------- */
     iReqColumn = ((int)nFeatureId - 1) / poReader->GetRasterYSize();
-    iReqRow = (int)nFeatureId - iReqColumn * poReader->GetRasterXSize() - 1;
+    iReqRow = (int)nFeatureId - iReqColumn * poReader->GetRasterYSize() - 1;
 
     if( iReqColumn != iColumnOffset )
     {
@@ -373,6 +378,8 @@ OGRFeature *OGRNTFRasterLayer::GetFeature( GIntBig nFeatureId )
         if( poReader->ReadRasterColumn( iReqColumn, pafColumn ) != CE_None )
             return NULL;
     }
+    if( iReqRow < 0 || iReqRow >= poReader->GetRasterYSize() )
+        return NULL;
 
 /* -------------------------------------------------------------------- */
 /*      Create a corresponding feature.                                 */

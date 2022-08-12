@@ -1439,7 +1439,7 @@ static OGRFeature *TranslateProfilePoint( NTFFileReader *poReader,
                                     NULL );
 
     // Set HEIGHT/elevation
-    OGRPoint    *poPoint = (OGRPoint *) poFeature->GetGeometryRef();
+    OGRPoint    *poPoint = dynamic_cast<OGRPoint *>(poFeature->GetGeometryRef());
 
     if( poPoint != NULL && poPoint->getCoordinateDimension() == 3 )
     {
@@ -1486,7 +1486,7 @@ static OGRFeature *TranslateProfileLine( NTFFileReader *poReader,
                                     NULL );
 
     // Set HEIGHT/elevation
-    OGRLineString *poLine = (OGRLineString *) poFeature->GetGeometryRef();
+    OGRLineString *poLine = dynamic_cast<OGRLineString*>(poFeature->GetGeometryRef());
 
     poFeature->SetField( 2, poFeature->GetFieldAsDouble(2) * 0.01 );
     if( poLine != NULL && poLine->getCoordinateDimension() == 2 )
@@ -1752,9 +1752,10 @@ void NTFFileReader::EstablishLayer( const char * pszLayerName,
                 {
                     oFieldDefn.SetType( OFTReal );
                     oFieldDefn.SetWidth( poClass->panAttrMaxWidth[iGAtt]+1 );
-                    if( pszFormat[2] == ',' )
+                    const size_t nFormatLen = strlen(pszFormat);
+                    if( nFormatLen >= 4 && pszFormat[2] == ',' )
                         oFieldDefn.SetPrecision(atoi(pszFormat+3));
-                    else if( pszFormat[3] == ',' )
+                    else if( nFormatLen >= 5 && pszFormat[3] == ',' )
                         oFieldDefn.SetPrecision(atoi(pszFormat+4));
                 }
 

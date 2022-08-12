@@ -232,7 +232,6 @@ OGRErr OGRCurveCollection::importBodyFromWkb( OGRGeometry* poGeom,
     nCurveCount = 0;
     for( int iGeom = 0; iGeom < nIter; iGeom++ )
     {
-        OGRErr  eErr;
         OGRGeometry* poSubGeom = NULL;
 
         /* Parses sub-geometry */
@@ -240,12 +239,16 @@ OGRErr OGRCurveCollection::importBodyFromWkb( OGRGeometry* poGeom,
         if( nSize < 9 && nSize != -1 )
             return OGRERR_NOT_ENOUGH_DATA;
 
-        OGRwkbGeometryType eSubGeomType;
-        if ( OGRReadWKBGeometryType( pabySubData, eWkbVariant, &eSubGeomType ) != OGRERR_NONE )
+        OGRwkbGeometryType eFlattenSubGeomType = wkbUnknown;
+        if( OGRReadWKBGeometryType( pabySubData, eWkbVariant,
+                                    &eFlattenSubGeomType ) != OGRERR_NONE )
             return OGRERR_FAILURE;
+        eFlattenSubGeomType = wkbFlatten(eFlattenSubGeomType);
 
-        if( (eSubGeomType != wkbCompoundCurve && OGR_GT_IsCurve(eSubGeomType)) ||
-            (bAcceptCompoundCurve && eSubGeomType == wkbCompoundCurve) )
+        OGRErr eErr = OGRERR_NONE;
+        if( (eFlattenSubGeomType != wkbCompoundCurve &&
+             OGR_GT_IsCurve(eFlattenSubGeomType)) ||
+            (bAcceptCompoundCurve && eFlattenSubGeomType == wkbCompoundCurve) )
         {
             eErr = OGRGeometryFactory::
                 createFromWkb( pabySubData, NULL,
@@ -253,24 +256,30 @@ OGRErr OGRCurveCollection::importBodyFromWkb( OGRGeometry* poGeom,
         }
         else
         {
-            CPLDebug("OGR", "Cannot add geometry of type (%d) to geometry of type (%d)",
-                     eSubGeomType, poGeom->getGeometryType());
+            CPLDebug(
+                "OGR",
+                "Cannot add geometry of type (%d) to geometry of type (%d)",
+                eFlattenSubGeomType, poGeom->getGeometryType());
             return OGRERR_UNSUPPORTED_GEOMETRY_TYPE;
         }
 
         if( eErr == OGRERR_NONE )
+        {
+            // Do that before adding the curve to the collection, since that
+            // might change its dimensions.
+            const int nSubGeomWkbSize = poSubGeom->WkbSize();
+            if( nSize != -1 )
+                nSize -= nSubGeomWkbSize;
+
+            nDataOffset += nSubGeomWkbSize;
+
             eErr = pfnAddCurveDirectlyFromWkb(poGeom, (OGRCurve*)poSubGeom);
+        }
         if( eErr != OGRERR_NONE )
         {
             delete poSubGeom;
             return eErr;
         }
-
-        int nSubGeomWkbSize = poSubGeom->WkbSize();
-        if( nSize != -1 )
-            nSize -= nSubGeomWkbSize;
-
-        nDataOffset += nSubGeomWkbSize;
     }
 
     return OGRERR_NONE;
@@ -506,7 +515,14 @@ void OGRCurveCollection::getEnvelope( OGREnvelope3D * psEnvelope ) const
             else
             {
                 papoCurves[iGeom]->getEnvelope( &oGeomEnv );
-                psEnvelope->Merge( oGeomEnv );
+                // In the current implementation we cannot use Merge()
+                // if the initial envelope is 0.
+                psEnvelope->MinX = MIN(psEnvelope->MinX,oGeomEnv.MinX);
+                psEnvelope->MaxX = MAX(psEnvelope->MaxX,oGeomEnv.MaxX);
+                psEnvelope->MinY = MIN(psEnvelope->MinY,oGeomEnv.MinY);
+                psEnvelope->MaxY = MAX(psEnvelope->MaxY,oGeomEnv.MaxY);
+                psEnvelope->MinZ = MIN(psEnvelope->MinZ,oGeomEnv.MinZ);
+                psEnvelope->MaxZ = MAX(psEnvelope->MaxZ,oGeomEnv.MaxZ);
             }
         }
     }
@@ -524,7 +540,12 @@ void OGRCurveCollection::getEnvelope( OGREnvelope3D * psEnvelope ) const
 
 OGRBoolean OGRCurveCollection::IsEmpty() const
 {
-    return nCurveCount == 0;
+    for( int iGeom = 0; iGeom < nCurveCount; iGeom++ )
+    {
+        if( !papoCurves[iGeom]->IsEmpty() )
+            return FALSE;
+    }
+    return TRUE;
 }
 
 /************************************************************************/
