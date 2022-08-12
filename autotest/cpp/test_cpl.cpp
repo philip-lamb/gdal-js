@@ -1,40 +1,39 @@
 ///////////////////////////////////////////////////////////////////////////////
-// $Id$
 //
 // Project:  C++ Test Suite for GDAL/OGR
 // Purpose:  Test general CPL features.
 // Author:   Mateusz Loskot <mateusz@loskot.net>
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2006, Mateusz Loskot <mateusz@loskot.net>
 // Copyright (c) 2008-2012, Even Rouault <even dot rouault at mines-paris dot org>
-//  
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Library General Public
 // License as published by the Free Software Foundation; either
 // version 2 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Library General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Library General Public
 // License along with this library; if not, write to the
 // Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include <tut.h>
-#include <tut_gdal.h>
-#include <gdal_common.h>
-#include <string>
+#include "gdal_unit_test.h"
+
+#include <cpl_error.h>
+#include <cpl_hash_set.h>
+#include <cpl_list.h>
+#include <cpl_sha256.h>
+#include <cpl_string.h>
+
 #include <fstream>
-#include "cpl_list.h"
-#include "cpl_hash_set.h"
-#include "cpl_string.h"
-#include "cpl_sha256.h"
-#include "cpl_error.h"
+#include <string>
 
 static bool gbGotError = false;
 static void CPL_STDCALL myErrorHandler(CPLErr, CPLErrorNum, const char*)
@@ -68,7 +67,7 @@ namespace tut
     void object::test<1>()
     {
         CPLList* list;
-    
+
         list = CPLListInsert(NULL, (void*)0, 0);
         ensure(CPLListCount(list) == 1);
         list = CPLListRemove(list, 2);
@@ -78,7 +77,7 @@ namespace tut
         list = CPLListRemove(list, 0);
         ensure(CPLListCount(list) == 0);
         list = NULL;
-        
+
         list = CPLListInsert(NULL, (void*)0, 2);
         ensure(CPLListCount(list) == 3);
         list = CPLListRemove(list, 2);
@@ -88,7 +87,7 @@ namespace tut
         list = CPLListRemove(list, 0);
         ensure(CPLListCount(list) == 0);
         list = NULL;
-    
+
         list = CPLListAppend(list, (void*)1);
         ensure(CPLListGet(list,0) == list);
         ensure(CPLListGet(list,1) == NULL);
@@ -97,7 +96,7 @@ namespace tut
         ensure(CPLListCount(list) == 3);
         CPLListDestroy(list);
         list = NULL;
-    
+
         list = CPLListAppend(list, (void*)1);
         list = CPLListAppend(list, (void*)2);
         list = CPLListInsert(list, (void*)4, 3);
@@ -109,7 +108,7 @@ namespace tut
         ensure(CPLListGet(list,3)->pData == (void*)4);
         CPLListDestroy(list);
         list = NULL;
-    
+
         list = CPLListInsert(list, (void*)4, 1);
         CPLListGet(list,0)->pData = (void*)2;
         list = CPLListInsert(list, (void*)1, 0);
@@ -160,20 +159,20 @@ namespace tut
 
             { "d1", CPL_VALUE_STRING } /* #6305 */
         };
-    
+
         size_t i;
         for(i=0;i < sizeof(apszTestStrings) / sizeof(apszTestStrings[0]); i++)
         {
             ensure(CPLGetValueType(apszTestStrings[i].testString) == apszTestStrings[i].expectedResult);
             if (CPLGetValueType(apszTestStrings[i].testString) != apszTestStrings[i].expectedResult)
                 fprintf(stderr, "mismatch on item %d : value=\"%s\", expect_result=%d, result=%d\n", (int)i,
-                        apszTestStrings[i].testString, 
+                        apszTestStrings[i].testString,
                         apszTestStrings[i].expectedResult,
                         CPLGetValueType(apszTestStrings[i].testString));
         }
     }
-    
-    
+
+
     // Test cpl_hash_set API
     template<>
     template<>
@@ -478,7 +477,9 @@ namespace tut
             bool bOK = (memcmp(pszDecodedString, oReferenceString.szString,
                            nLength) == 0);
             // FIXME Some tests fail on Mac. Not sure why, but do not error out just for that
-            if( !bOK && ((getenv("TRAVIS") && getenv("TRAVIS_XCODE_SDK")) || getenv("DO_NOT_FAIL_ON_RECODE_ERRORS")))
+            if( !bOK && (strstr(CPLGetConfigOption("TRAVIS_OS_NAME", ""), "osx") != NULL ||
+                         strstr(CPLGetConfigOption("BUILD_NAME", ""), "osx") != NULL ||
+                         getenv("DO_NOT_FAIL_ON_RECODE_ERRORS") != NULL))
             {
                 fprintf(stderr, "Recode from %s failed\n", oTestString.szEncoding);
             }
@@ -502,7 +503,7 @@ namespace tut
         CPLStringList  oCSL;
 
         ensure( "7nil", oCSL.List() == NULL );
-        
+
         oCSL.AddString( "def" );
         oCSL.AddString( "abc" );
 
@@ -516,9 +517,9 @@ namespace tut
         CSLDestroy( oCSL.StealList() );
         ensure_equals( "75", oCSL.Count(), 0 );
         ensure( "76", oCSL.List() == NULL );
-        
+
         // Test that the list will make an internal copy when needed to
-        // modify a read-only list. 
+        // modify a read-only list.
 
         oCSL.AddString( "def" );
         oCSL.AddString( "abc" );
@@ -539,7 +540,7 @@ namespace tut
     template<>
     void object::test<8>()
     {
-        // Test some name=value handling stuff. 
+        // Test some name=value handling stuff.
         CPLStringList oNVL;
 
         oNVL.AddNameValue( "KEY1", "VALUE1" );
@@ -612,13 +613,13 @@ namespace tut
         ensure( "c6", EQUAL(oTestSort[2],"T=3") );
         ensure( "c7", EQUAL(oTestSort[3],"Z=1") );
         ensure_equals( "c8", oTestSort[4], (const char*)NULL );
-        
+
         // Test FetchNameValue() in a sorted list
         ensure( "c9", EQUAL(oTestSort.FetchNameValue("A"),"4") );
         ensure( "c10", EQUAL(oTestSort.FetchNameValue("L"),"2") );
         ensure( "c11", EQUAL(oTestSort.FetchNameValue("T"),"3") );
         ensure( "c12", EQUAL(oTestSort.FetchNameValue("Z"),"1") );
-        
+
         // Test AddNameValue() in a sorted list
         oTestSort.AddNameValue("B", "5");
         ensure( "c13", EQUAL(oTestSort[0],"A=4") );
@@ -627,11 +628,11 @@ namespace tut
         ensure( "c16", EQUAL(oTestSort[3],"T=3") );
         ensure( "c17", EQUAL(oTestSort[4],"Z=1") );
         ensure_equals( "c18", oTestSort[5], (const char*)NULL );
-        
+
         // Test SetNameValue() of an existing item in a sorted list
         oTestSort.SetNameValue("Z", "6");
         ensure( "c19", EQUAL(oTestSort[4],"Z=6") );
-        
+
         // Test SetNameValue() of a non-existing item in a sorted list
         oTestSort.SetNameValue("W", "7");
         ensure( "c20", EQUAL(oTestSort[0],"A=4") );
@@ -676,7 +677,7 @@ namespace tut
         // Test insertion logic pretty carefully.
         oNVL.Clear();
         ensure( "9c", oNVL.IsSorted() == TRUE );
-        
+
         oNVL.SetNameValue( "B", "BB" );
         oNVL.SetNameValue( "A", "AA" );
         oNVL.SetNameValue( "D", "DD" );
@@ -915,6 +916,146 @@ namespace tut
         CPLPopErrorHandler();
 
         CPLSetConfigOption("CPL_DEBUG", oldVal.size() ? oldVal.c_str() : NULL);
+    }
+
+/************************************************************************/
+/*                         CPLString::replaceAll()                      */
+/************************************************************************/
+    template<>
+    template<>
+    void object::test<16>()
+    {
+        CPLString osTest;
+        osTest = "foobarbarfoo";
+        osTest.replaceAll("bar", "was_bar");
+        ensure_equals( osTest, "foowas_barwas_barfoo" );
+
+        osTest = "foobarbarfoo";
+        osTest.replaceAll("X", "was_bar");
+        ensure_equals( osTest, "foobarbarfoo" );
+
+        osTest = "foobarbarfoo";
+        osTest.replaceAll("", "was_bar");
+        ensure_equals( osTest, "foobarbarfoo" );
+
+        osTest = "foobarbarfoo";
+        osTest.replaceAll("bar", "");
+        ensure_equals( osTest, "foofoo" );
+
+        osTest = "foobarbarfoo";
+        osTest.replaceAll('b', 'B');
+        ensure_equals( osTest, "fooBarBarfoo" );
+
+        osTest = "foobarbarfoo";
+        osTest.replaceAll('b', "B");
+        ensure_equals( osTest, "fooBarBarfoo" );
+
+        osTest = "foobarbarfoo";
+        osTest.replaceAll("b", 'B');
+        ensure_equals( osTest, "fooBarBarfoo" );
+    }
+
+/************************************************************************/
+/*                        VSIMallocAligned()                            */
+/************************************************************************/
+    template<>
+    template<>
+    void object::test<17>()
+    {
+        GByte* ptr = static_cast<GByte*>(VSIMallocAligned(sizeof(void*), 1));
+        ensure( ptr != NULL );
+        ensure( ((size_t)ptr % sizeof(void*)) == 0 );
+        *ptr = 1;
+        VSIFreeAligned(ptr);
+
+        ptr = static_cast<GByte*>(VSIMallocAligned(16, 1));
+        ensure( ptr != NULL );
+        ensure( ((size_t)ptr % 16) == 0 );
+        *ptr = 1;
+        VSIFreeAligned(ptr);
+
+        VSIFreeAligned(NULL);
+
+#ifndef WIN32
+        // Illegal use of API. Returns non NULL on Windows
+        ptr = static_cast<GByte*>(VSIMallocAligned(2, 1));
+        ensure( ptr == NULL );
+
+        // Illegal use of API. Crashes on Windows
+        ptr = static_cast<GByte*>(VSIMallocAligned(5, 1));
+        ensure( ptr == NULL );
+#endif
+
+        if( !CSLTestBoolean(CPLGetConfigOption("SKIP_MEM_INTENSIVE_TEST", "NO")) )
+        {
+            // The following tests will fail because such allocations cannot succeed
+#if SIZEOF_VOIDP == 8
+            ptr = static_cast<GByte*>(VSIMallocAligned(sizeof(void*), ~((size_t)0)));
+            ensure( ptr == NULL );
+
+            ptr = static_cast<GByte*>(VSIMallocAligned(sizeof(void*), (~((size_t)0)) - sizeof(void*)));
+            ensure( ptr == NULL );
+#endif
+        }
+    }
+
+/************************************************************************/
+/*             CPLGetConfigOptions() / CPLSetConfigOptions()            */
+/************************************************************************/
+    template<>
+    template<>
+    void object::test<18>()
+    {
+        CPLSetConfigOption("FOOFOO", "BAR");
+        char** options = CPLGetConfigOptions();
+        ensure_equals (CSLFetchNameValue(options, "FOOFOO"), "BAR");
+        CPLSetConfigOptions(NULL);
+        ensure_equals (CPLGetConfigOption("FOOFOO", "i_dont_exist"), "i_dont_exist");
+        CPLSetConfigOptions(options);
+        ensure_equals (CPLGetConfigOption("FOOFOO", "i_dont_exist"), "BAR");
+        CSLDestroy(options);
+    }
+
+/************************************************************************/
+/*  CPLGetThreadLocalConfigOptions() / CPLSetThreadLocalConfigOptions() */
+/************************************************************************/
+    template<>
+    template<>
+    void object::test<19>()
+    {
+        CPLSetThreadLocalConfigOption("FOOFOO", "BAR");
+        char** options = CPLGetThreadLocalConfigOptions();
+        ensure_equals (CSLFetchNameValue(options, "FOOFOO"), "BAR");
+        CPLSetThreadLocalConfigOptions(NULL);
+        ensure_equals (CPLGetThreadLocalConfigOption("FOOFOO", "i_dont_exist"), "i_dont_exist");
+        CPLSetThreadLocalConfigOptions(options);
+        ensure_equals (CPLGetThreadLocalConfigOption("FOOFOO", "i_dont_exist"), "BAR");
+        CSLDestroy(options);
+    }
+
+    template<>
+    template<>
+    void object::test<20>()
+    {
+        ensure_equals ( CPLExpandTilde("/foo/bar"), "/foo/bar" );
+
+        CPLSetConfigOption("HOME", "/foo");
+        ensure_equals ( CPLExpandTilde("~/bar"), "/foo/bar" );
+        CPLSetConfigOption("HOME", NULL);
+    }
+
+    template<>
+    template<>
+    void object::test<21>()
+    {
+        // CPLString(std::string) constructor
+        ensure_equals ( CPLString(std::string("abc")).c_str(), "abc" );
+
+        // CPLString(const char*) constructor
+        ensure_equals ( CPLString("abc").c_str(), "abc" );
+
+        // CPLString(const char*, n) constructor
+        ensure_equals ( CPLString("abc",1).c_str(), "a" );
     }
 
 } // namespace tut

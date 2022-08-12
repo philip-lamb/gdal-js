@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  Oracle Spatial Driver
  * Purpose:  Implementation of the OGROCIWritableLayer class.  This provides
@@ -54,6 +53,7 @@ OGROCIWritableLayer::OGROCIWritableLayer()
     panElemInfo = NULL;
 
     bLaunderColumnNames = TRUE;
+    bPreservePrecision = FALSE;
     bTruncationReported = FALSE;
     poSRS = NULL;
 
@@ -246,7 +246,7 @@ OGRErr OGROCIWritableLayer::CreateField( OGRFieldDefn *poFieldIn, int bApproxOK 
 {
     OGROCISession      *poSession = poDS->GetSession();
     char                szFieldType[256];
-    char                szFieldName[128];  // 12.2 max identifier name
+    char                szFieldName[128]; // 12.2 max identifier name
     OGRFieldDefn        oField( poFieldIn );
 
 /* -------------------------------------------------------------------- */

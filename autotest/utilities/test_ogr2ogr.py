@@ -170,10 +170,13 @@ def test_ogr2ogr_5():
         pass
 
     gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' tmp/poly.shp ../ogr/data/poly.shp')
+    # All 3 variants below should be equivalent
     gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -update -append tmp/poly.shp ../ogr/data/poly.shp')
+    gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -append tmp/poly.shp ../ogr/data/poly.shp')
+    gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -append -update tmp/poly.shp ../ogr/data/poly.shp')
 
     ds = ogr.Open('tmp/poly.shp')
-    if ds is None or ds.GetLayer(0).GetFeatureCount() != 20:
+    if ds is None or ds.GetLayer(0).GetFeatureCount() != 40:
         return 'fail'
 
     feat10 = ds.GetLayer(0).GetFeature(10)
@@ -550,7 +553,7 @@ def test_ogr2ogr_18():
 
     ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('tmp/wrapdateline_src.shp')
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(32660);
+    srs.ImportFromEPSG(32660)
     lyr = ds.CreateLayer('wrapdateline_src', srs = srs)
     feat = ogr.Feature(lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('POLYGON((700000 4000000,800000 4000000,800000 3000000,700000 3000000,700000 4000000))')
@@ -561,11 +564,13 @@ def test_ogr2ogr_18():
 
     gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + ' -wrapdateline -t_srs EPSG:4326 tmp/wrapdateline_dst.shp tmp/wrapdateline_src.shp')
 
-    expected_wkt = 'MULTIPOLYGON (((179.222391385437419 36.124095832129363,180.0 36.10605558800065,180.0 27.090340569400169,179.017505655195095 27.107979523625211,179.222391385437419 36.124095832129363)),((-180.0 36.10605558800065,-179.667822828781084 36.098349195413753,-179.974688335419557 27.089886143076747,-180.0 27.090340569400169,-180.0 36.10605558800065)))'
+    expected_wkt = 'MULTIPOLYGON (((-179.667822828781 36.0983491954137,-179.974688335419 27.0898861430767,-180.0 27.0904291236983,-180.0 36.1071354433546,-179.667822828781 36.0983491954137)),((180.0 27.0904291237411,179.017505655195 27.1079795236252,179.222391385437 36.1240958321293,180.0 36.1071354433546,180.0 27.0904291237411)))'
+
     expected_geom = ogr.CreateGeometryFromWkt(expected_wkt)
     ds = ogr.Open('tmp/wrapdateline_dst.shp')
     lyr = ds.GetLayer(0)
     feat = lyr.GetNextFeature()
+    got_wkt = feat.GetGeometryRef().ExportToWkt()
     ret = ogrtest.check_feature_geometry(feat, expected_geom)
     feat.Destroy()
     expected_geom.Destroy()
@@ -577,6 +582,7 @@ def test_ogr2ogr_18():
     if ret == 0:
         return 'success'
     else:
+        print(got_wkt)
         return 'fail'
 
 ###############################################################################
@@ -947,7 +953,7 @@ def test_ogr2ogr_28():
 
     ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('tmp/wrapdateline_src.shp')
     srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326);
+    srs.ImportFromEPSG(4326)
     lyr = ds.CreateLayer('wrapdateline_src', srs = srs)
     feat = ogr.Feature(lyr.GetLayerDefn())
     geom = ogr.CreateGeometryFromWkt('LINESTRING(160 0,165 1,170 2,175 3,177 4,-177 5,-175 6,-170 7,-177 8,177 9,170 10)')
@@ -1002,7 +1008,7 @@ def test_ogr2ogr_29():
 
         ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('tmp/wrapdateline_src.shp')
         srs = osr.SpatialReference()
-        srs.ImportFromEPSG(4326);
+        srs.ImportFromEPSG(4326)
         lyr = ds.CreateLayer('wrapdateline_src', srs = srs)
         feat = ogr.Feature(lyr.GetLayerDefn())
 
@@ -1912,7 +1918,7 @@ def test_ogr2ogr_50():
     ds = ogr.Open('tmp/test_ogr2ogr_50.dbf')
     lyr = ds.GetLayer(0)
     feat = lyr.GetNextFeature()
-    if feat.GetField('field1') != 'foo' or feat.IsFieldSet('field2'):
+    if feat.GetField('field1') != 'foo' or not feat.IsFieldNull('field2'):
         gdaltest.post_reason('fail')
         feat.DumpReadable()
         return 'fail'
@@ -2629,6 +2635,22 @@ def test_ogr2ogr_65():
 
     return 'success'
 
+###############################################################################
+# Test accidental overriding of dataset when dst and src filenames are the same (#1465)
+
+def test_ogr2ogr_66():
+    if test_cli_utilities.get_ogr2ogr_path() is None:
+        return 'skip'
+
+    (ret, err) = gdaltest.runexternal_out_and_err(test_cli_utilities.get_ogr2ogr_path() + ' ../ogr/data/poly.shp ../ogr/data/poly.shp')
+    if err.find("Source and destination datasets must be different in non-update mode") < 0:
+        gdaltest.post_reason('fail')
+        print(ret)
+        print(err)
+        return 'fail'
+
+    return 'success'
+
 def hexify_double(val):
     val = hex(val)
     # On 32bit Linux, we might get a trailing L
@@ -2672,7 +2694,7 @@ def check_identity_transformation(x, y, srid):
     if ok:
         # Now, transforming SHP to SHP will have a different definition of the SRS (EPSG:srid) which comes from the previouly saved .prj file
         # For angular units in degrees the .prj is saved with greater precision than the internally used value.
-        # We perform this additional tranformation to exercise the case of units defined with different precision
+        # We perform this additional transformation to exercise the case of units defined with different precision
         gdaltest.runexternal(test_cli_utilities.get_ogr2ogr_path() + " tmp/output_point2.shp tmp/output_point.shp -t_srs EPSG:%(srid)d"  % locals())
         ds = ogr.Open('tmp/output_point2.shp')
         feat = ds.GetLayer(0).GetNextFeature()
@@ -2704,7 +2726,6 @@ def test_ogr2ogr_67():
     # both as latitutude/longitude in degrees.
     ret = check_identity_transformation(x, y, 4326)
     return ret
-
 
 gdaltest_list = [
     test_ogr2ogr_1,
@@ -2773,8 +2794,11 @@ gdaltest_list = [
     test_ogr2ogr_63,
     test_ogr2ogr_64,
     test_ogr2ogr_65,
+    test_ogr2ogr_66,
     test_ogr2ogr_67
     ]
+
+# gdaltest_list = [ test_ogr2ogr_66 ]
 
 if __name__ == '__main__':
 

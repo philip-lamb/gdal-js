@@ -3,7 +3,7 @@
 CXX = g++
 CXXFLAGS := $(shell gdal-config --cflags) -I. -Itut $(CPPFLAGS)
 CXXFLAGS += -Wall
-CXXFLAGS += -Wextra
+CXXFLAGS += -Wextra -Wno-unused-function
 # CXXFLAGS += -Werror
 
 ifdef HARDEN
@@ -18,7 +18,7 @@ endif
 
 LDFLAGS = $(shell gdal-config --libs)
 
-PROGS = gdal_unit_test testperfcopywords testcopywords testclosedondestroydm testthreadcond test_virtualmem testblockcache testblockcachewrite testblockcachelimits testdestroy
+PROGS = gdal_unit_test testperfcopywords testcopywords testclosedondestroydm testthreadcond testvirtualmem testblockcache testblockcachewrite testblockcachelimits testdestroy testmultithreadedwriting test_include_from_c_file test_c_include_from_cpp_file
 
 all: $(PROGS)
 
@@ -31,7 +31,7 @@ quick_test:
 	./testcopywords
 	./testclosedondestroydm
 	./testthreadcond
-	./test_virtualmem
+	./testvirtualmem
 	./testblockcache -check -co TILED=YES --debug TEST,LOCK -loops 3 --config GDAL_RB_LOCK_DEBUG_CONTENTION YES
 	./testblockcache -check -co TILED=YES --debug TEST,LOCK -loops 3 --config GDAL_RB_LOCK_DEBUG_CONTENTION YES --config GDAL_RB_LOCK_TYPE SPIN
 	./testblockcache -check -co TILED=YES -migrate
@@ -40,6 +40,7 @@ quick_test:
 	./testblockcache --config GDAL_BAND_BLOCK_CACHE HASHSET -check -co TILED=YES --debug TEST,LOCK -loops 3 --config GDAL_RB_LOCK_DEBUG_CONTENTION YES
 	./testblockcache --config GDAL_BAND_BLOCK_CACHE HASHSET -check -co TILED=YES --debug TEST,LOCK -loops 3 --config GDAL_RB_LOCK_DEBUG_CONTENTION YES --config GDAL_RB_LOCK_TYPE SPIN
 	./testblockcachelimits --debug ON
+	./testmultithreadedwriting
 	./testdestroy
 
 OBJ = \
@@ -75,13 +76,16 @@ testclosedondestroydm: testclosedondestroydm.cpp
 testthreadcond: testthreadcond.cpp
 	$(CXX) -g $(CXXFLAGS) $< $(LDFLAGS) -o $@
 
-test_virtualmem: test_virtualmem.cpp
+testvirtualmem: testvirtualmem.cpp
 	$(CXX) -g $(CXXFLAGS) $< $(LDFLAGS) -o $@
 
 testblockcache: testblockcache.cpp
 	$(CXX) -g -O2 $(CXXFLAGS) $< $(LDFLAGS) -o $@
 
 testblockcachewrite: testblockcachewrite.cpp
+	$(CXX) -g -O2 $(CXXFLAGS) $< $(LDFLAGS) -o $@
+
+testmultithreadedwriting: testmultithreadedwriting.cpp
 	$(CXX) -g -O2 $(CXXFLAGS) $< $(LDFLAGS) -o $@
 
 testblockcachelimits: testblockcachelimits.cpp
@@ -93,9 +97,15 @@ testdestroy: testdestroy.cpp
 vsipreload.so: ../../gdal/port/vsipreload.cpp
 	$(CXX) -fPIC -g $(CXXFLAGS) $< $(LDFLAGS) -shared -o $@
 
+test_include_from_c_file: test_include_from_c_file.c
+	$(CC) -g $(CXXFLAGS) $< $(LDFLAGS) -o $@
+
+test_c_include_from_cpp_file: test_c_include_from_cpp_file.cpp
+	$(CXX) -g $(CXXFLAGS) $< $(LDFLAGS) -o $@
+
 clean:
 	$(RM) $(PROGS)
-	$(RM) *.o
+	$(RM) $(OBJ)
 	$(RM) *.a
 	$(RM) *.out
 	$(RM) *~

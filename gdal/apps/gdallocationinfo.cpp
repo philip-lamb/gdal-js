@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  GDAL
  * Purpose:  Command line raster query tool.
@@ -58,7 +57,7 @@ Usage: gdallocationinfo [--help-general] [-xml] [-lifonly] [-valonly]
 
 <p>
 The gdallocationinfo utility provide a mechanism to query information about
-a pixel given it's location in one of a variety of coordinate systems.  Several
+a pixel given its location in one of a variety of coordinate systems.  Several
 reporting options are provided.
 
 <p>
@@ -331,7 +330,7 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
 /*      If no bands were requested, we will query them all.             */
 /* -------------------------------------------------------------------- */
-    if( anBandList.size() == 0 )
+    if( anBandList.empty() )
     {
         for( int i = 0; i < GDALGetRasterCount( hSrcDS ); i++ )
             anBandList.push_back( i+1 );
@@ -603,7 +602,6 @@ int main( int argc, char ** argv )
         {
             inputAvailable = 0;
         }
-
     }
 
 /* -------------------------------------------------------------------- */

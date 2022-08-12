@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  RPF A.TOC read Library
  * Purpose:  Module responsible for opening a RPF TOC file, populating RPFToc
@@ -44,10 +43,20 @@
  ******************************************************************************
  */
 
+#include "cpl_port.h"
 #include "rpftoclib.h"
-#include "cpl_vsi.h"
+
+#include <climits>
+#include <cstring>
+#if HAVE_FCNTL_H
+#  include <fcntl.h>
+#endif
+
 #include "cpl_conv.h"
+#include "cpl_error.h"
 #include "cpl_string.h"
+#include "cpl_vsi.h"
+#include "nitflib.h"
 
 CPL_CVSID("$Id$");
 
@@ -103,7 +112,6 @@ RPFToc* RPFTOCRead(const char* pszFilename, NITFFile* psFile)
 
     return  RPFTOCReadFromBuffer(pszFilename, psFile->fp, pachTRE);
 }
-
 
 /* This function is directly inspired by function parse_toc coming from ogdi/driver/rpf/utils.c */
 
@@ -557,7 +565,7 @@ RPFToc* RPFTOCReadFromBuffer(const char* pszFilename, VSILFILE* fp, const char* 
         {
             char* baseDir = CPLStrdup(CPLGetDirname(pszFilename));
             VSIStatBufL sStatBuf;
-            char* subdir;
+            char* subdir = NULL;
             if (CPLIsFilenameRelative(frameEntry->directory) == FALSE)
                 subdir = CPLStrdup(frameEntry->directory);
             else if (frameEntry->directory[0] == '.' && frameEntry->directory[1] == 0)

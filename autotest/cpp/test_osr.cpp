@@ -1,5 +1,4 @@
 ///////////////////////////////////////////////////////////////////////////////
-// $Id: test_osr.cpp,v 1.5 2006/12/06 15:39:13 mloskot Exp $
 //
 // Project:  C++ Test Suite for GDAL/OGR
 // Purpose:  OGR Spatial Reference general features test.
@@ -23,27 +22,15 @@
 // Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 ///////////////////////////////////////////////////////////////////////////////
-//
-//  $Log: test_osr.cpp,v $
-//  Revision 1.5  2006/12/06 15:39:13  mloskot
-//  Added file header comment and copyright note.
-//
-//
-///////////////////////////////////////////////////////////////////////////////
 
-// See Bronek Kozicki's comments posted here:
-// http://lists.boost.org/Archives/boost/2005/07/89697.php
-#if defined(_MSC_VER) || defined(_WIN32_WCE)
-#pragma warning(disable: 4996)
-#endif
+#include "gdal_unit_test.h"
 
-#include <tut.h>
-#include <tut_gdal.h>
-#include <ogr_srs_api.h> // OGR/OSR API
+#include <cpl_string.h>
+#include <ogr_srs_api.h>
+
 #include <algorithm>
 #include <cmath>
 #include <string>
-#include <cpl_string.h>
 
 namespace tut
 {
@@ -310,7 +297,7 @@ namespace tut
         char* wkt1 = NULL;
         err_ = OSRExportToWkt(srs_, &wkt1);
         ensure_equals("OSRExportToWkt failed", err_, OGRERR_NONE);
-        ensure("OSRExportToWkt returned NULL", NULL != wkt1); 
+        ensure("OSRExportToWkt returned NULL", NULL != wkt1);
 
         err_ = OSRSetFromUserInput(srs_, "EPSGA:4326");
         ensure_equals("OSRSetFromUserInput failed", err_, OGRERR_NONE);
@@ -339,7 +326,7 @@ namespace tut
         char* wkt1 = NULL;
         err_ = OSRExportToWkt(srs_, &wkt1);
         ensure_equals("OSRExportToWkt failed", err_, OGRERR_NONE);
-        ensure("OSRExportToWkt returned NULL", NULL != wkt1); 
+        ensure("OSRExportToWkt returned NULL", NULL != wkt1);
 
         std::string expect("PROJCS[\"UTM Zone 11, Northern Hemisphere\","
                            "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\","

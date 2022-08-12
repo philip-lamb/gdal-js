@@ -1141,8 +1141,6 @@ CPLErr AIGReadStatistics( const char * pszCoverName, AIGInfo_t * psInfo )
         return( CE_Failure );
     }
 
-    CPLFree( pszHDRFilename );
-
 /* -------------------------------------------------------------------- */
 /*      Get the contents - 3 or 4 doubles.                              */
 /* -------------------------------------------------------------------- */
@@ -1180,8 +1178,10 @@ CPLErr AIGReadStatistics( const char * pszCoverName, AIGInfo_t * psInfo )
     {
         CPLError( CE_Failure, CPLE_AppDefined, "Wrong content for %s",
                   pszHDRFilename );
+        CPLFree( pszHDRFilename );
         return CE_Failure;
     }
 
-    return( CE_None );
+    CPLFree( pszHDRFilename );
+    return CE_None;
 }

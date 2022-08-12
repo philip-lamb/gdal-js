@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id: ogrdwglayer.cpp 19643 2010-05-08 21:56:18Z rouault $
  *
  * Project:  DWG Translator
  * Purpose:  Implements OGRDWGBlocksLayer class.
@@ -30,7 +29,7 @@
 #include "ogr_dwg.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id: ogrdwglayer.cpp 19643 2010-05-08 21:56:18Z rouault $");
+CPL_CVSID("$Id$");
 
 /************************************************************************/
 /*                         OGRDWGBlocksLayer()                          */
@@ -96,14 +95,15 @@ OGRFeature *OGRDWGBlocksLayer::GetNextUnfilteredFeature()
 /*      Are we done reading the current blocks features?                */
 /* -------------------------------------------------------------------- */
     DWGBlockDefinition *psBlock = &(oIt->second);
-    unsigned int nSubFeatureCount = psBlock->apoFeatures.size();
+    unsigned int nSubFeatureCount = static_cast<unsigned int>(
+        psBlock->apoFeatures.size());
 
     if( psBlock->poGeometry != NULL )
         nSubFeatureCount++;
 
     if( iNextSubFeature >= nSubFeatureCount )
     {
-        oIt++;
+        ++oIt;
 
         iNextSubFeature = 0;
 

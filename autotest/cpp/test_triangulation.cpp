@@ -27,7 +27,8 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include <tut.h>
+#include "gdal_unit_test.h"
+
 #include <gdal_alg.h>
 
 namespace tut
@@ -36,7 +37,7 @@ namespace tut
     struct test_triangulation_data
     {
         GDALTriangulation* psDT;
-        
+
         test_triangulation_data() : psDT(NULL) {}
         ~test_triangulation_data() { GDALTriangulationFree(psDT); }
     };
@@ -60,7 +61,7 @@ namespace tut
             ensure(psDT == NULL);
         }
     }
-    
+
     template<>
     template<>
     void object::test<2>()
@@ -75,7 +76,7 @@ namespace tut
             ensure(psDT == NULL);
         }
     }
-    
+
     template<>
     template<>
     void object::test<3>()

@@ -1,5 +1,5 @@
-gdal.js
-*.swp
-*js.mem
-*.data
-*.wasm
+*.pyc
+*.o
+*.obj
+*.so
+*~

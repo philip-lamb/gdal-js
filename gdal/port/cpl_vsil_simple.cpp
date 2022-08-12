@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  VSI Virtual File System
  * Purpose:  Alternatve simplified implementation VSI*L File API that just
@@ -128,7 +127,7 @@ int VSIFCloseL( FILE * fp )
 int VSIFSeekL( FILE * fp, vsi_l_offset nOffset, int nWhence )
 
 {
-    return VSIFSeek( fp, (int) nOffset, nWhence );
+    return VSIFSeek(fp, static_ast<int>(nOffset), nWhence);
 }
 
 /************************************************************************/
@@ -138,7 +137,7 @@ int VSIFSeekL( FILE * fp, vsi_l_offset nOffset, int nWhence )
 vsi_l_offset VSIFTellL( FILE * fp )
 
 {
-    return (vsi_l_offset) VSIFTell( fp );
+    return static_cast<vsi_l_offset>(VSIFTell(fp));
 }
 
 /************************************************************************/

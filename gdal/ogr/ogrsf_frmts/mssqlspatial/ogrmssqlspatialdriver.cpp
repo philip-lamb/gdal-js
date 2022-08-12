@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  MSSQL Spatial driver
  * Purpose:  Definition of classes for OGR MSSQL Spatial driver.
@@ -110,7 +109,6 @@ int OGRMSSQLSpatialDriver::TestCapability( const char * pszCap )
         return FALSE;
 }
 
-
 /************************************************************************/
 /*                           RegisterOGRMSSQLSpatial()                  */
 /************************************************************************/
@@ -126,9 +124,9 @@ void RegisterOGRMSSQLSpatial()
     poDriver->SetMetadataItem( GDAL_DMD_LONGNAME,
                                "Microsoft SQL Server Spatial Database"
 #ifdef MSSQL_BCP_SUPPORTED
-			       " (BCP)"
+                               " (BCP)"
 #endif
-	);
+                               );
     poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "drv_mssqlspatial.html" );
     poDriver->SetMetadataItem( GDAL_DMD_CREATIONOPTIONLIST,
                                "<CreationOptionList/>");

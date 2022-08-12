@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  NITF Read/Write Library
  * Purpose:  ARIDPCM reading code.
@@ -28,9 +27,14 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
-#include "cpl_conv.h"
-#include "gdal.h"
+#include "cpl_port.h"
 #include "nitflib.h"
+
+#include <cstring>
+
+#include "gdal.h"
+#include "cpl_conv.h"
+#include "cpl_error.h"
 
 CPL_CVSID("$Id$");
 

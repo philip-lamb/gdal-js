@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  OpenAir Translator
  * Purpose:  Implements OGROpenAirDriver.
@@ -126,4 +125,3 @@ void RegisterOGROpenAir()
 
     GetGDALDriverManager()->RegisterDriver( poDriver );
 }
-

@@ -228,7 +228,7 @@ def xyz_6():
 
 
 ###############################################################################
-# Test XYZ with not completely equal stepX and stepY (#6461)
+# Test XYZ with not completely equal stepX and stepY
 
 def xyz_7():
 

@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id: $
  *
  * Name:     georaster_dataset.cpp
  * Project:  Oracle Spatial GeoRaster Driver
@@ -40,6 +39,8 @@
 #include "ogr_spatialref.h"
 
 #include "georaster_priv.h"
+
+CPL_CVSID("$Id$");
 
 //  ---------------------------------------------------------------------------
 //                                                           GeoRasterDataset()
@@ -466,9 +467,7 @@ void GeoRasterDataset::JP2_CreateCopy( GDALDataset* poJP2DS,
     {
         char** papszOpt = NULL;
 
-        const char* pszFetched  = "";
-
-        pszFetched = CSLFetchNameValue( papszOptions, "JP2_BLOCKXSIZE" );
+        const char* pszFetched  = CSLFetchNameValue( papszOptions, "JP2_BLOCKXSIZE" );
 
         if( pszFetched )
         {
@@ -621,10 +620,9 @@ boolean GeoRasterDataset::JP2_CopyDirect( const char* pszJP2Filename,
             EQUAL( oBox.GetType(), "ftyp" ) ||
             EQUAL( oBox.GetType(), "jp2h" ) )
         {
-            size_t nSize = (size_t) 0;
             size_t nDataLength = (size_t) oBox.GetDataLength();
 
-            nSize = VSIFReadL( pBuffer, 1, nDataLength, fpInput);
+            size_t nSize = VSIFReadL( pBuffer, 1, nDataLength, fpInput);
  
             if ( nSize != nDataLength )
             {
@@ -1163,8 +1161,8 @@ GDALDataset *GeoRasterDataset::Create( const char *pszFilename,
         }
     }
 
-    poGRD->poGeoRaster->bCreateObjectTable = CPL_TO_BOOL(
-        CSLFetchBoolean( papszOptions, "OBJECTTABLE", FALSE ));
+    poGRD->poGeoRaster->bCreateObjectTable =
+        CPLFetchBool( papszOptions, "OBJECTTABLE", false );
 
     //  -------------------------------------------------------------------
     //  Create a SDO_GEORASTER object on the server
@@ -1222,8 +1220,8 @@ GDALDataset *GeoRasterDataset::Create( const char *pszFilename,
         poGRD->poGeoRaster->SetGeoReference( atoi( pszFetched ) );
     }
 
-    poGRD->poGeoRaster->bGenSpatialIndex = CPL_TO_BOOL(
-        CSLFetchBoolean( papszOptions, "SPATIALEXTENT", TRUE ));
+    poGRD->poGeoRaster->bGenSpatialIndex =
+        CPLFetchBool( papszOptions, "SPATIALEXTENT", TRUE );
 
     pszFetched = CSLFetchNameValue( papszOptions, "EXTENTSRID" );
 

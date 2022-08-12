@@ -32,7 +32,8 @@ sys.path.append('../pymod')
 
 import gdaltest
 import ogrtest
-from osgeo import ogr, gdal
+from osgeo import gdal
+from osgeo import ogr
 
 def cpl_debug_on():
     gdaltest.cpl_debug = gdal.GetConfigOption('CPL_DEBUG')
@@ -1372,7 +1373,7 @@ def ogr_interlis2_4():
             ok = ogrtest.check_feature_geometry(geom, val) == 0
         if not ok:
             gdaltest.post_reason('geom check failed.')
-            print geom
+            print(geom)
             return 'fail'
 
     return 'success'

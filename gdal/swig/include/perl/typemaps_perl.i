@@ -18,7 +18,7 @@
 %typemap(out) GIntBig
 {
     char temp[256];
-    sprintf(temp, ""CPL_FRMT_GIB"", $1);
+    sprintf(temp, "" CPL_FRMT_GIB "", $1);
     $result = sv_2mortal(newSVpv(temp, 0));
     argvi++;
 }
@@ -31,7 +31,7 @@
 %typemap(out) GUIntBig
 {
     char temp[256];
-    sprintf(temp, ""CPL_FRMT_GUIB"", $1);
+    sprintf(temp, "" CPL_FRMT_GUIB "", $1);
     $result = sv_2mortal(newSVpv(temp, 0));
     argvi++;
 }
@@ -41,7 +41,7 @@
 %apply (double *OUTPUT) { double *defaultval };
 
 %fragment("sv_to_utf8_string", "header") %{
-  char *sv_to_utf8_string(SV *sv, U8 **tmpbuf, bool *safefree = NULL) {
+    char *sv_to_utf8_string(SV *sv, U8 **tmpbuf, bool *safefree = NULL) {
         /* if tmpbuf is given, only tmpbuf needs to be freed, use Safefree!
            if not, ret needs to be freed, if safefree use Safefree else use free! */
         char *ret;
@@ -515,6 +515,8 @@
         do_confess(NEED_ARRAY_REF, 1);
     $1 = argin;
     AV *av = (AV*)(SvRV($input));
+    if (av_len(av)+1 < $dim0)
+      do_confess(NOT_ENOUGH_ELEMENTS, 1);
     for (unsigned int i=0; i<$dim0; i++) {
         SV *sv = *av_fetch(av, i, 0);
         if (!SvOK(sv))
@@ -1191,9 +1193,9 @@
     if ( !$1 ) {
         switch (err) {
         case 1:
-            do_confess(ARRAY_TO_XML_FAILED" "NEED_DEF, 1);
+            do_confess(ARRAY_TO_XML_FAILED " " NEED_DEF, 1);
         case 2:
-            do_confess(ARRAY_TO_XML_FAILED" "NEED_ARRAY_REF, 1);
+            do_confess(ARRAY_TO_XML_FAILED " " NEED_ARRAY_REF, 1);
         }
     }
 }
@@ -1365,6 +1367,10 @@ IF_UNDEF_NULL(const char *, target_key)
     $1 = (void *)(&saved_env);
 }
 
+%typemap(typecheck, precedence=SWIG_TYPECHECK_INTEGER) GDALProgressFunc callback {
+    /* %typemap(typecheck, precedence=SWIG_TYPECHECK_INTEGER) GDALProgressFunc callback */
+   $1 = SvOK($input) && SvROK($input) && SvTYPE(SvRV($input)) == SVt_PVCV;
+}
 %typemap(in) (GDALProgressFunc callback = NULL)
 {
     /* %typemap(in) (GDALProgressFunc callback = NULL) */
@@ -1552,6 +1558,17 @@ IF_UNDEF_NULL(const char *, target_key)
 %typemap(freearg) (const char* name)
 {
     /* %typemap(freearg) (const char* name) */
+    if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
+}
+
+%typemap(in, numinputs=1, fragment="sv_to_utf8_string") (const char* field_name) (U8 *tmpbuf = NULL)
+{
+    /* %typemap(in,numinputs=1) (const char* field_name) */
+    $1 = sv_to_utf8_string($input, &tmpbuf);
+}
+%typemap(freearg) (const char* field_name)
+{
+    /* %typemap(freearg) (const char* field_name) */
     if (tmpbuf$argnum) Safefree(tmpbuf$argnum);
 }
 

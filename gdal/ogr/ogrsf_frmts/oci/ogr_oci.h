@@ -89,7 +89,6 @@ typedef struct
 #define ORA_GTYPE_SOLID           8
 #define ORA_GTYPE_MULTISOLID      9
 
-
 /************************************************************************/
 /*                            OGROCISession                             */
 /************************************************************************/
@@ -128,9 +127,9 @@ class CPL_DLL OGROCISession {
 
   private:
 
-    int      nServerVersion;
-    int      nServerRelease;
-    size_t   nMaxNameLength;
+    int         nServerVersion;
+    int         nServerRelease;
+    size_t      nMaxNameLength;
 };
 
 OGROCISession CPL_DLL*
@@ -143,7 +142,7 @@ OGRGetOCISession( const char *pszUserid,
 /************************************************************************/
 class CPL_DLL OGROCIStatement {
   public:
-                 OGROCIStatement( OGROCISession * );
+    explicit     OGROCIStatement( OGROCISession * );
     virtual     ~OGROCIStatement();
 
     OCIStmt     *GetStatement() { return hStatement; }
@@ -258,18 +257,18 @@ class OGROCILayer : public OGRLayer
   public:
                         OGROCILayer();
     virtual             ~OGROCILayer();
-    virtual int         FindFieldIndex( const char *pszFieldName, int bExactMatch ) { return OGRLayer::FindFieldIndex( pszFieldName, bExactMatch ); }
+    virtual int         FindFieldIndex( const char *pszFieldName, int bExactMatch ) override { return OGRLayer::FindFieldIndex( pszFieldName, bExactMatch ); }
 
-    virtual void        ResetReading();
+    virtual void        ResetReading() override;
     virtual OGRFeature *GetNextRawFeature();
-    virtual OGRFeature *GetNextFeature();
+    virtual OGRFeature *GetNextFeature() override;
 
-    OGRFeatureDefn *    GetLayerDefn() { return poFeatureDefn; }
+    OGRFeatureDefn *    GetLayerDefn() override { return poFeatureDefn; }
 
-    virtual int         TestCapability( const char * );
+    virtual int         TestCapability( const char * ) override;
 
-    virtual const char *GetFIDColumn();
-    virtual const char *GetGeometryColumn();
+    virtual const char *GetFIDColumn() override;
+    virtual const char *GetGeometryColumn() override;
 
     int                 LookupTableSRID();
 };
@@ -316,10 +315,10 @@ protected:
     virtual            ~OGROCIWritableLayer();
 public:
 
-    virtual OGRSpatialReference *GetSpatialRef() { return poSRS; }
+    virtual OGRSpatialReference *GetSpatialRef() override { return poSRS; }
     virtual OGRErr      CreateField( OGRFieldDefn *poField,
-                                     int bApproxOK = TRUE );
-    virtual int         FindFieldIndex( const char *pszFieldName, int bExactMatch );
+                                     int bApproxOK = TRUE ) override;
+    virtual int         FindFieldIndex( const char *pszFieldName, int bExactMatch ) override;
 
     // following methods are not base class overrides
     void                SetOptions( char ** );
@@ -359,6 +358,7 @@ class OGROCILoaderLayer : public OGROCIWritableLayer
 
     OGRErr              WriteFeatureStreamMode( OGRFeature * );
     OGRErr              WriteFeatureVariableMode( OGRFeature * );
+    // cppcheck-suppress functionStatic
     OGRErr              WriteFeatureBinaryMode( OGRFeature * );
 
   public:
@@ -367,26 +367,25 @@ class OGROCILoaderLayer : public OGROCIWritableLayer
                                            const char *pszGeomCol,
                                            int nSRID,
                                            const char *pszLoaderFile );
-                        ~OGROCILoaderLayer();
+                        virtual ~OGROCILoaderLayer();
 
-    virtual void        ResetReading();
-    virtual GIntBig     GetFeatureCount( int );
+    virtual void        ResetReading() override;
+    virtual GIntBig     GetFeatureCount( int ) override;
 
-    virtual void        SetSpatialFilter( OGRGeometry * ) {}
-    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+    virtual void        SetSpatialFilter( OGRGeometry * ) override {}
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom ) override
                 { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
-    virtual OGRErr      SetAttributeFilter( const char * )
+    virtual OGRErr      SetAttributeFilter( const char * ) override
                                 { return OGRERR_UNSUPPORTED_OPERATION; }
 
-    virtual OGRFeature *GetNextFeature();
+    virtual OGRFeature *GetNextFeature() override;
 
-    virtual OGRErr      ICreateFeature( OGRFeature *poFeature );
+    virtual OGRErr      ICreateFeature( OGRFeature *poFeature ) override;
 
-    virtual OGRSpatialReference *GetSpatialRef() { return poSRS; }
+    virtual OGRSpatialReference *GetSpatialRef() override { return poSRS; }
 
-    virtual int         TestCapability( const char * );
-
+    virtual int         TestCapability( const char * ) override;
 };
 
 /************************************************************************/
@@ -405,9 +404,9 @@ class OGROCITableLayer : public OGROCIWritableLayer
 
     OGRFeatureDefn     *ReadTableDefinition(const char *);
 
-    void                BuildWhere(void);
-    char               *BuildFields(void);
-    void                BuildFullQueryStatement(void);
+    void                BuildWhere();
+    char               *BuildFields();
+    void                BuildFullQueryStatement();
 
     char               *pszQuery;
     char               *pszWHERE;
@@ -453,31 +452,31 @@ class OGROCITableLayer : public OGROCIWritableLayer
                         OGROCITableLayer( OGROCIDataSource *,
                                           const char * pszName, OGRwkbGeometryType eGType,
                                           int nSRID, int bUpdate, int bNew );
-                        ~OGROCITableLayer();
+                        virtual ~OGROCITableLayer();
 
-    virtual void        ResetReading();
-    virtual GIntBig     GetFeatureCount( int );
+    virtual void        ResetReading() override;
+    virtual GIntBig     GetFeatureCount( int ) override;
 
-    virtual void        SetSpatialFilter( OGRGeometry * );
-    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom )
+    virtual void        SetSpatialFilter( OGRGeometry * ) override;
+    virtual void        SetSpatialFilter( int iGeomField, OGRGeometry *poGeom ) override
                 { OGRLayer::SetSpatialFilter(iGeomField, poGeom); }
 
-    virtual OGRErr      SetAttributeFilter( const char * );
+    virtual OGRErr      SetAttributeFilter( const char * ) override;
 
-    virtual OGRFeature *GetNextFeature();
-    virtual OGRFeature *GetFeature( GIntBig nFeatureId );
+    virtual OGRFeature *GetNextFeature() override;
+    virtual OGRFeature *GetFeature( GIntBig nFeatureId ) override;
 
-    virtual OGRErr      ISetFeature( OGRFeature *poFeature );
-    virtual OGRErr      ICreateFeature( OGRFeature *poFeature );
-    virtual OGRErr      DeleteFeature( GIntBig nFID );
+    virtual OGRErr      ISetFeature( OGRFeature *poFeature ) override;
+    virtual OGRErr      ICreateFeature( OGRFeature *poFeature ) override;
+    virtual OGRErr      DeleteFeature( GIntBig nFID ) override;
 
-    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE);
-    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce)
+    virtual OGRErr      GetExtent(OGREnvelope *psExtent, int bForce = TRUE) override;
+    virtual OGRErr      GetExtent(int iGeomField, OGREnvelope *psExtent, int bForce) override
                 { return OGRLayer::GetExtent(iGeomField, psExtent, bForce); }
 
-    virtual int         TestCapability( const char * );
+    virtual int         TestCapability( const char * ) override;
 
-    virtual OGRErr      SyncToDisk();
+    virtual OGRErr      SyncToDisk() override;
 
     // following methods are not base class overrides
     int                 IsValid() { return bValidTable; }
@@ -525,7 +524,7 @@ class OGROCIDataSource : public OGRDataSource
 
   public:
                         OGROCIDataSource();
-                        ~OGROCIDataSource();
+                        virtual ~OGROCIDataSource();
 
     OGROCISession      *GetSession() { return poSession; }
 
@@ -535,18 +534,18 @@ class OGROCIDataSource : public OGRDataSource
                                    int nSRID, int bUpdate, int bTestOpen,
                                    char** papszOpenOptionsIn );
 
-    const char          *GetName() { return pszName; }
-    int                 GetLayerCount() { return nLayers; }
-    OGRLayer            *GetLayer( int );
-    OGRLayer            *GetLayerByName(const char * pszName);
+    const char          *GetName() override { return pszName; }
+    int                 GetLayerCount() override { return nLayers; }
+    OGRLayer            *GetLayer( int ) override;
+    OGRLayer            *GetLayerByName(const char * pszName) override;
 
-    virtual OGRErr      DeleteLayer(int);
+    virtual OGRErr      DeleteLayer(int) override;
     virtual OGRLayer    *ICreateLayer( const char *,
                                       OGRSpatialReference * = NULL,
                                       OGRwkbGeometryType = wkbUnknown,
-                                      char ** = NULL );
+                                      char ** = NULL ) override;
 
-    int                 TestCapability( const char * );
+    int                 TestCapability( const char * ) override;
 
     void                DeleteLayer( const char * );
 
@@ -555,8 +554,8 @@ class OGROCIDataSource : public OGRDataSource
 
     virtual OGRLayer *  ExecuteSQL( const char *pszSQLCommand,
                                     OGRGeometry *poSpatialFilter,
-                                    const char *pszDialect );
-    virtual void        ReleaseResultSet( OGRLayer * poLayer );
+                                    const char *pszDialect ) override;
+    virtual void        ReleaseResultSet( OGRLayer * poLayer ) override;
 
     int                 FetchSRSId( OGRSpatialReference * poSRS );
     OGRSpatialReference *FetchSRS( int nSRID );
@@ -572,6 +571,5 @@ OGROCIStrokeArcToOGRGeometry_Points( double dfStartX, double dfStartY,
                                      double dfMaxAngleStepSizeDegrees,
                                      int bForceWholeCircle,
                                      OGRLineString *poLine );
-
 
 #endif /* ndef OGR_OCI_H_INCLUDED */
