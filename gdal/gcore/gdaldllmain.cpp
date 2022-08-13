@@ -109,7 +109,7 @@ static void GDALInitialize(void)
     // nothing to do
     //CPLDebug("GDAL", "Library loaded");
 #ifdef DEBUG
-    const char* pszLocale = CPLGetConfigOption("GDAL_LOCALE", NULL);
+    const char* pszLocale = CPLGetConfigOption("GDAL_LOCALE", nullptr);
     if( pszLocale )
         CPLsetlocale( LC_ALL, pszLocale );
 #endif
@@ -136,6 +136,7 @@ static void GDALDestructor(void)
 /*  point specific for Windows.                                         */
 /************************************************************************/
 #ifdef _MSC_VER
+#ifndef CPL_DISABLE_DLL
 
 #include <windows.h>
 
@@ -163,4 +164,5 @@ extern "C" int WINAPI DllMain( HINSTANCE /* hInstance */,
     return 1; // ignored for all reasons but DLL_PROCESS_ATTACH
 }
 
+#endif // CPL_DISABLE_DLL
 #endif // _MSC_VER

@@ -29,7 +29,9 @@
 # DEALINGS IN THE SOFTWARE.
 ###############################################################################
 
+import glob
 import os
+import os.path
 import sys
 
 from osgeo import gdal
@@ -66,6 +68,51 @@ def Usage():
 
     return 1
 
+
+def DoesDriverHandleExtension(drv, ext):
+    exts = drv.GetMetadataItem(gdal.DMD_EXTENSIONS)
+    return exts is not None and exts.lower().find(ext.lower()) >= 0
+
+
+def GetExtension(filename):
+    ext = os.path.splitext(filename)[1]
+    if ext.startswith('.'):
+        ext = ext[1:]
+    return ext
+
+
+def GetOutputDriversFor(filename):
+    drv_list = []
+    ext = GetExtension(filename)
+    if ext.lower() == 'vrt':
+        return ['VRT']
+    for i in range(gdal.GetDriverCount()):
+        drv = gdal.GetDriver(i)
+        if (drv.GetMetadataItem(gdal.DCAP_CREATE) is not None or
+            drv.GetMetadataItem(gdal.DCAP_CREATECOPY) is not None) and \
+           drv.GetMetadataItem(gdal.DCAP_VECTOR) is not None:
+            if len(ext) > 0 and DoesDriverHandleExtension(drv, ext):
+                drv_list.append(drv.ShortName)
+            else:
+                prefix = drv.GetMetadataItem(gdal.DMD_CONNECTION_PREFIX)
+                if prefix is not None and filename.lower().startswith(prefix.lower()):
+                    drv_list.append(drv.ShortName)
+
+    return drv_list
+
+
+def GetOutputDriverFor(filename):
+    drv_list = GetOutputDriversFor(filename)
+    ext = GetExtension(filename)
+    if len(drv_list) == 0:
+        if len(ext) == 0:
+            return 'ESRI Shapefile'
+        else:
+            raise Exception("Cannot guess driver for %s" % filename)
+    elif len(drv_list) > 1:
+        print("Several drivers matching %s extension. Using %s" % (ext, drv_list[0]))
+    return drv_list[0]
+
 #############################################################################
 
 
@@ -83,7 +130,7 @@ def EQUAL(x, y):
 
 def _GetGeomType(src_geom_type_name):
     if EQUAL(src_geom_type_name, "GEOMETRY"):
-        return ogr.wkbGeometry
+        return ogr.wkbUnknown
     try:
         max_geom_type = ogr.wkbTriangle
     except:
@@ -116,8 +163,10 @@ class XMLWriter:
         xml_attrs = ''
         if attrs is not None:
             for key in attrs:
-                xml_attrs = xml_attrs + ' %s=\"%s\"' % (key, _Esc(attrs[key]))
-        _VSIFPrintfL(self.f, '%s<%s%s>\n' % (self._indent(), name, xml_attrs))
+                xml_attrs = xml_attrs + ' %s=\"%s\"' % (key, _Esc(attrs[key].encode('utf-8')))
+        x = '%s<%s%s>\n' % (self._indent(), name, xml_attrs)
+        x = x.encode('utf-8')
+        _VSIFPrintfL(self.f, x)
         self.inc = self.inc + 1
         self.elements.append(name)
 
@@ -125,10 +174,11 @@ class XMLWriter:
         xml_attrs = ''
         if attrs is not None:
             for key in attrs:
-                xml_attrs = xml_attrs + ' %s=\"%s\"' % (key, _Esc(attrs[key]))
-        _VSIFPrintfL(self.f, '%s<%s%s>%s</%s>\n' %
-                     (self._indent(), name, xml_attrs,
-                      _Esc(value), name))
+                xml_attrs = xml_attrs + ' %s=\"%s\"' % (key, _Esc(attrs[key].encode('utf-8')))
+        x = '%s<%s%s>%s</%s>\n' % (self._indent(), name, xml_attrs,
+                      _Esc(value.encode('utf-8')), name)
+        x = x.encode('utf-8')
+        _VSIFPrintfL(self.f, x)
 
     def close_element(self, closing_name=None):
         self.inc = self.inc - 1
@@ -171,10 +221,10 @@ def process(argv, progress=None, progress_arg=None):
     i = 0
     while i < len(argv):
         arg = argv[i]
-        if (arg == '-f' or arg == '-of') and i+1 < len(argv):
+        if (arg == '-f' or arg == '-of') and i + 1 < len(argv):
             i = i + 1
             output_format = argv[i]
-        elif arg == '-o' and i+1 < len(argv):
+        elif arg == '-o' and i + 1 < len(argv):
             i = i + 1
             dst_filename = argv[i]
         elif arg == '-progress':
@@ -196,34 +246,34 @@ def process(argv, progress=None, progress_arg=None):
             update = True
         elif arg == '-single':
             single_layer = True
-        elif arg == '-a_srs' and i+1 < len(argv):
+        elif arg == '-a_srs' and i + 1 < len(argv):
             i = i + 1
             a_srs = argv[i]
-        elif arg == '-s_srs' and i+1 < len(argv):
+        elif arg == '-s_srs' and i + 1 < len(argv):
             i = i + 1
             s_srs = argv[i]
-        elif arg == '-t_srs' and i+1 < len(argv):
+        elif arg == '-t_srs' and i + 1 < len(argv):
             i = i + 1
             t_srs = argv[i]
-        elif arg == '-nln' and i+1 < len(argv):
+        elif arg == '-nln' and i + 1 < len(argv):
             i = i + 1
             layer_name_template = argv[i]
-        elif arg == '-field_strategy' and i+1 < len(argv):
+        elif arg == '-field_strategy' and i + 1 < len(argv):
             i = i + 1
             field_strategy = argv[i]
-        elif arg == '-src_layer_field_name' and i+1 < len(argv):
+        elif arg == '-src_layer_field_name' and i + 1 < len(argv):
             i = i + 1
             src_layer_field_name = argv[i]
-        elif arg == '-src_layer_field_content' and i+1 < len(argv):
+        elif arg == '-src_layer_field_content' and i + 1 < len(argv):
             i = i + 1
             src_layer_field_content = argv[i]
-        elif arg == '-dsco' and i+1 < len(argv):
+        elif arg == '-dsco' and i + 1 < len(argv):
             i = i + 1
             dsco.append(argv[i])
-        elif arg == '-lco' and i+1 < len(argv):
+        elif arg == '-lco' and i + 1 < len(argv):
             i = i + 1
             lco.append(argv[i])
-        elif arg == '-src_geom_type' and i+1 < len(argv):
+        elif arg == '-src_geom_type' and i + 1 < len(argv):
             i = i + 1
             src_geom_type_names = argv[i].split(',')
             for src_geom_type_name in src_geom_type_names:
@@ -237,7 +287,13 @@ def process(argv, progress=None, progress_arg=None):
             print('ERROR: Unrecognized argument : %s' % arg)
             return Usage()
         else:
-            src_datasets.append(arg)
+            if '*' in arg:
+                if sys.version_info < (3,0,0):
+                    src_datasets += [fn.decode(sys.getfilesystemencoding()) for fn in glob.glob(arg)]
+                else:
+                    src_datasets += glob.glob(arg)
+            else:
+                src_datasets.append(arg)
         i = i + 1
 
     if dst_filename is None:
@@ -254,7 +310,7 @@ def process(argv, progress=None, progress_arg=None):
         output_format = ''
     else:
         if output_format is None:
-            output_format = 'ESRI Shapefile'
+            output_format = GetOutputDriverFor(dst_filename)
 
     if src_layer_field_content is None:
         src_layer_field_content = '{AUTO_NAME}'
@@ -308,6 +364,10 @@ def process(argv, progress=None, progress_arg=None):
 
         vrt_filename = '/vsimem/_ogrmerge_.vrt'
     else:
+        if gdal.VSIStatL(dst_filename) and not overwrite_ds:
+            print('ERROR: Destination dataset already exists, ' +
+                  'but -overwrite_ds are specified')
+            return 1
         vrt_filename = dst_filename
 
     f = gdal.VSIFOpenL(vrt_filename, 'wb')
@@ -352,21 +412,27 @@ def process(argv, progress=None, progress_arg=None):
 
                 layer_name = src_layer_field_content
 
+                src_lyr_name = src_lyr.GetName()
+                try:
+                    src_lyr_name = src_lyr_name.decode('utf-8')
+                except AttributeError:
+                    pass
+
                 basename = None
                 if os.path.exists(src_dsname):
                     basename = os.path.basename(src_dsname)
                     if basename.find('.') >= 0:
                         basename = '.'.join(basename.split(".")[0:-1])
 
-                if basename == src_lyr.GetName():
+                if basename == src_lyr_name:
                     layer_name = layer_name.replace('{AUTO_NAME}', basename)
                 elif basename is None:
                     layer_name = layer_name.replace(
                         '{AUTO_NAME}',
-                        'Dataset%d_%s' % (src_ds_idx, src_lyr.GetName()))
+                        'Dataset%d_%s' % (src_ds_idx, src_lyr_name))
                 else:
                     layer_name = layer_name.replace(
-                        '{AUTO_NAME}', basename + '_' + src_lyr.GetName())
+                        '{AUTO_NAME}', basename + '_' + src_lyr_name)
 
                 if basename is not None:
                     layer_name = layer_name.replace('{DS_BASENAME}', basename)
@@ -378,8 +444,8 @@ def process(argv, progress=None, progress_arg=None):
                 layer_name = layer_name.replace('{DS_INDEX}', '%d' %
                                                 src_ds_idx)
                 layer_name = layer_name.replace('{LAYER_NAME}',
-                                                src_lyr.GetName())
-                layer_name = layer_name.replace('{LAYER_INDEX}',  '%d' %
+                                                src_lyr_name)
+                layer_name = layer_name.replace('{LAYER_INDEX}', '%d' %
                                                 src_lyr_idx)
 
                 if t_srs is not None:
@@ -431,6 +497,12 @@ def process(argv, progress=None, progress_arg=None):
                     if gt not in src_geom_types:
                         continue
 
+                src_lyr_name = src_lyr.GetName()
+                try:
+                    src_lyr_name = src_lyr_name.decode('utf-8')
+                except AttributeError:
+                    pass
+
                 layer_name = layer_name_template
                 basename = None
                 if os.path.exists(src_dsname):
@@ -438,15 +510,15 @@ def process(argv, progress=None, progress_arg=None):
                     if basename.find('.') >= 0:
                         basename = '.'.join(basename.split(".")[0:-1])
 
-                if basename == src_lyr.GetName():
+                if basename == src_lyr_name:
                     layer_name = layer_name.replace('{AUTO_NAME}', basename)
                 elif basename is None:
                     layer_name = layer_name.replace(
                         '{AUTO_NAME}',
-                        'Dataset%d_%s' % (src_ds_idx, src_lyr.GetName()))
+                        'Dataset%d_%s' % (src_ds_idx, src_lyr_name))
                 else:
                     layer_name = layer_name.replace(
-                        '{AUTO_NAME}', basename + '_' + src_lyr.GetName())
+                        '{AUTO_NAME}', basename + '_' + src_lyr_name)
 
                 if basename is not None:
                     layer_name = layer_name.replace('{DS_BASENAME}', basename)
@@ -469,8 +541,8 @@ def process(argv, progress=None, progress_arg=None):
                 layer_name = layer_name.replace('{DS_INDEX}', '%d' %
                                                 src_ds_idx)
                 layer_name = layer_name.replace('{LAYER_NAME}',
-                                                src_lyr.GetName())
-                layer_name = layer_name.replace('{LAYER_INDEX}',  '%d' %
+                                                src_lyr_name)
+                layer_name = layer_name.replace('{LAYER_INDEX}', '%d' %
                                                 src_lyr_idx)
 
                 if t_srs is not None:
@@ -487,7 +559,7 @@ def process(argv, progress=None, progress_arg=None):
                     attrs = {'relativeToVRT': '1'}
                 writer.write_element_value('SrcDataSource', src_dsname,
                                            attrs=attrs)
-                writer.write_element_value('SrcLayer', src_lyr.GetName())
+                writer.write_element_value('SrcLayer', src_lyr_name)
 
                 if a_srs is not None:
                     writer.write_element_value('LayerSRS', a_srs)
@@ -532,7 +604,10 @@ def process(argv, progress=None, progress_arg=None):
 
 
 def main():
-    argv = ogr.GeneralCmdLineProcessor(sys.argv)
+    argv = sys.argv
+    if sys.version_info < (3,0,0):
+        argv = [fn.decode(sys.getfilesystemencoding()) for fn in argv]
+    argv = ogr.GeneralCmdLineProcessor(argv)
     if argv is None:
         return 1
     return process(argv[1:])

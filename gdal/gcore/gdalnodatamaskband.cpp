@@ -37,8 +37,9 @@
 #include "cpl_error.h"
 #include "cpl_vsi.h"
 #include "gdal.h"
+#include "gdal_priv_templates.hpp"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 //! @cond Doxygen_Suppress
 /************************************************************************/
@@ -49,7 +50,7 @@ GDALNoDataMaskBand::GDALNoDataMaskBand( GDALRasterBand *poParentIn ) :
     dfNoDataValue(poParentIn->GetNoDataValue()),
     poParent(poParentIn)
 {
-    poDS = NULL;
+    poDS = nullptr;
     nBand = 0;
 
     nRasterXSize = poParent->GetXSize();
@@ -66,19 +67,13 @@ GDALNoDataMaskBand::GDALNoDataMaskBand( GDALRasterBand *poParentIn ) :
 GDALNoDataMaskBand::~GDALNoDataMaskBand() {}
 
 /************************************************************************/
-/*                             IReadBlock()                             */
+/*                          GetWorkDataType()                           */
 /************************************************************************/
 
-CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
-                                       void * pImage )
-
+static GDALDataType GetWorkDataType(GDALDataType eDataType)
 {
     GDALDataType eWrkDT = GDT_Unknown;
-
-/* -------------------------------------------------------------------- */
-/*      Decide on a working type.                                       */
-/* -------------------------------------------------------------------- */
-    switch( poParent->GetRasterDataType() )
+    switch( eDataType )
     {
       case GDT_Byte:
         eWrkDT = GDT_Byte;
@@ -111,6 +106,61 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
         eWrkDT = GDT_Float64;
         break;
     }
+    return eWrkDT;
+}
+
+/************************************************************************/
+/*                          IsNoDataInRange()                           */
+/************************************************************************/
+
+bool GDALNoDataMaskBand::IsNoDataInRange(double dfNoDataValue,
+                                         GDALDataType eDataType)
+{
+    GDALDataType eWrkDT = GetWorkDataType( eDataType );
+    switch( eWrkDT )
+    {
+      case GDT_Byte:
+      {
+          return GDALIsValueInRange<GByte>(dfNoDataValue);
+      }
+
+      case GDT_UInt32:
+      {
+          return GDALIsValueInRange<GUInt32>(dfNoDataValue);
+      }
+
+      case GDT_Int32:
+      {
+          return GDALIsValueInRange<GInt32>(dfNoDataValue);
+      }
+
+      case GDT_Float32:
+      {
+          return CPLIsNan(dfNoDataValue) ||
+                 CPLIsInf(dfNoDataValue) ||
+                 GDALIsValueInRange<float>(dfNoDataValue);
+      }
+
+      case GDT_Float64:
+      {
+          return true;
+      }
+
+      default:
+        CPLAssert( false );
+        return false;
+    }
+}
+
+/************************************************************************/
+/*                             IReadBlock()                             */
+/************************************************************************/
+
+CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
+                                       void * pImage )
+
+{
+    GDALDataType eWrkDT = GetWorkDataType( poParent->GetRasterDataType() );
 
 /* -------------------------------------------------------------------- */
 /*      Read the image data.                                            */
@@ -119,7 +169,7 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
     GByte *pabySrc = static_cast<GByte *>(
         VSI_MALLOC3_VERBOSE( GDALGetDataTypeSizeBytes(eWrkDT),
                              nBlockXSize, nBlockYSize ) );
-    if (pabySrc == NULL)
+    if (pabySrc == nullptr)
     {
         return CE_Failure;
     }
@@ -147,7 +197,7 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
                             pabySrc, nXSizeRequest, nYSizeRequest,
                             eWrkDT, 0,
                             nBlockXSize * GDALGetDataTypeSizeBytes(eWrkDT),
-                            NULL );
+                            nullptr );
     if( eErr != CE_None )
     {
         CPLFree(pabySrc);
@@ -163,59 +213,59 @@ CPLErr GDALNoDataMaskBand::IReadBlock( int nXBlockOff, int nYBlockOff,
     {
       case GDT_Byte:
       {
-          GByte byNoData = static_cast<GByte>( dfNoDataValue );
+        GByte byNoData = static_cast<GByte>( dfNoDataValue );
 
-          for( int i = nBlockXSize * nBlockYSize - 1; i >= 0; --i )
-          {
-              static_cast<GByte *>(pImage)[i] = pabySrc[i] == byNoData ? 0: 255;
-          }
+        for( int i = 0; i < nBlockXSize * nBlockYSize; i++ )
+        {
+            static_cast<GByte *>(pImage)[i] = pabySrc[i] == byNoData ? 0: 255;
+        }
       }
       break;
 
       case GDT_UInt32:
       {
-          GUInt32 nNoData = static_cast<GUInt32>( dfNoDataValue );
+        GUInt32 nNoData = static_cast<GUInt32>( dfNoDataValue );
 
-          for( int i = nBlockXSize * nBlockYSize - 1; i >= 0; --i )
-          {
-              static_cast<GByte *>(pImage)[i] =
-                  reinterpret_cast<GUInt32 *>(pabySrc)[i] == nNoData ? 0 : 255;
-          }
+        for( int i = 0; i < nBlockXSize * nBlockYSize; i++ )
+        {
+            static_cast<GByte *>(pImage)[i] =
+                reinterpret_cast<GUInt32 *>(pabySrc)[i] == nNoData ? 0 : 255;
+        }
       }
       break;
 
       case GDT_Int32:
       {
-          GInt32 nNoData = static_cast<GInt32>( dfNoDataValue );
+        GInt32 nNoData = static_cast<GInt32>( dfNoDataValue );
 
-          for( int i = nBlockXSize * nBlockYSize - 1; i >= 0; --i )
-          {
-              static_cast<GByte *>(pImage)[i] =
-                  reinterpret_cast<GInt32 *>(pabySrc)[i] == nNoData ? 0 : 255;
-          }
+        for( int i = 0; i < nBlockXSize * nBlockYSize; i++ )
+        {
+            static_cast<GByte *>(pImage)[i] =
+                reinterpret_cast<GInt32 *>(pabySrc)[i] == nNoData ? 0 : 255;
+        }
       }
       break;
 
       case GDT_Float32:
       {
-          float fNoData = static_cast<float>( dfNoDataValue );
+        float fNoData = static_cast<float>( dfNoDataValue );
 
-          for( int i = nBlockXSize * nBlockYSize - 1; i >= 0; --i )
-          {
-              const float fVal = reinterpret_cast<float *>(pabySrc)[i];
-              if( bIsNoDataNan && CPLIsNan(fVal))
-                  static_cast<GByte *>(pImage)[i] = 0;
-              else if( ARE_REAL_EQUAL(fVal, fNoData) )
-                  static_cast<GByte *>(pImage)[i] = 0;
-              else
-                  static_cast<GByte *>(pImage)[i] = 255;
-          }
+        for( int i = 0; i < nBlockXSize * nBlockYSize; i++ )
+        {
+            const float fVal = reinterpret_cast<float *>(pabySrc)[i];
+            if( bIsNoDataNan && CPLIsNan(fVal))
+                static_cast<GByte *>(pImage)[i] = 0;
+            else if( ARE_REAL_EQUAL(fVal, fNoData) )
+                static_cast<GByte *>(pImage)[i] = 0;
+            else
+                static_cast<GByte *>(pImage)[i] = 255;
+        }
       }
       break;
 
       case GDT_Float64:
       {
-          for( int i = nBlockXSize * nBlockYSize - 1; i >= 0; i-- )
+          for( int i = 0; i < nBlockXSize * nBlockYSize; i++ )
           {
               const double dfVal = reinterpret_cast<double *>(pabySrc)[i];
               if( bIsNoDataNan && CPLIsNan(dfVal))

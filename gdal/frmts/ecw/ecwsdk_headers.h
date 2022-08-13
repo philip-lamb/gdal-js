@@ -98,4 +98,9 @@
 /* to a CNCSError object */
 static inline CNCSError GetCNCSError(NCSError nCode) { return CNCSError(nCode); }
 
+#if ECWSDK_VERSION<50
+/* For NCSStrDup */
+#include "NCSUtil.h"
+#endif
+
 #endif

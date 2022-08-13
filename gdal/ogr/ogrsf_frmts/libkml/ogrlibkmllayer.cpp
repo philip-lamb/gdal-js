@@ -39,7 +39,7 @@
 
 #include <algorithm>
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 using kmldom::CameraPtr;
 using kmldom::ChangePtr;
@@ -99,7 +99,6 @@ CPLString OGRLIBKMLGetSanitizedNCName( const char* pszName )
  OGRLIBKMLLayer constructor
 
  Args:          pszLayerName    the name of the layer
-                poSpatialRef    the spacial Refrance for the layer
                 eGType          the layers geometry type
                 poOgrDS         pointer to the datasource the layer is in
                 poKmlRoot       pointer to the root kml element of the layer
@@ -113,7 +112,6 @@ CPLString OGRLIBKMLGetSanitizedNCName( const char* pszName )
 ******************************************************************************/
 
 OGRLIBKMLLayer::OGRLIBKMLLayer( const char *pszLayerName,
-                                OGRSpatialReference * poSpatialRef,
                                 OGRwkbGeometryType eGType,
                                 OGRLIBKMLDataSource * poOgrDS,
                                 ElementPtr poKmlRoot,
@@ -123,7 +121,6 @@ OGRLIBKMLLayer::OGRLIBKMLLayer( const char *pszLayerName,
                                 int bNew,
                                 int bUpdateIn ) :
     bUpdate(CPL_TO_BOOL(bUpdateIn)),
-    bUpdated(false),
     nFeatures(0),
     iFeature(0),
     nFID(1),
@@ -134,8 +131,8 @@ OGRLIBKMLLayer::OGRLIBKMLLayer( const char *pszLayerName,
     m_poKmlUpdate(poKmlUpdate),
     m_poOgrDS(poOgrDS),
     m_poOgrFeatureDefn(new OGRFeatureDefn(pszLayerName)),
-    m_poKmlSchema(NULL),
-    m_poOgrSRS(new OGRSpatialReference(NULL)),
+    m_poKmlSchema(nullptr),
+    m_poOgrSRS(new OGRSpatialReference(nullptr)),
     m_bReadGroundOverlay(CPLTestBool(
         CPLGetConfigOption("LIBKML_READ_GROUND_OVERLAY", "YES"))),
     m_bUseSimpleField(CPLTestBool(
@@ -152,7 +149,7 @@ OGRLIBKMLLayer::OGRLIBKMLLayer( const char *pszLayerName,
     m_dfRegionMaxY(-200),
     m_bUpdateIsFolder(false)
 {
-    m_poStyleTable = NULL;
+    m_poStyleTable = nullptr;
     m_poOgrSRS->SetWellKnownGeogCS( "WGS84" );
 
     SetDescription( m_poOgrFeatureDefn->GetName() );
@@ -232,14 +229,14 @@ OGRLIBKMLLayer::OGRLIBKMLLayer( const char *pszLayerName,
         }
 
         /***** the schema is somewhere else *****/
-        if( m_poKmlSchema == NULL )
+        if( !m_poKmlSchema )
         {
             /***** try to find the correct schema *****/
             bool bHasHeading = false;
             bool bHasTilt = false;
             bool bHasRoll = false;
             bool bHasSnippet = false;
-            FeaturePtr poKmlFeature = NULL;
+            FeaturePtr poKmlFeature = nullptr;
 
             /***** find the first placemark *****/
             do {
@@ -338,15 +335,6 @@ OGRLIBKMLLayer::OGRLIBKMLLayer( const char *pszLayerName,
             }
             iFeature = 0;
         }
-
-        /***** check if any features are another layer *****/
-        m_poOgrDS->ParseLayers( m_poKmlLayer, poSpatialRef );
-    }
-    /***** it was from a DS::CreateLayer *****/
-    else
-    {
-        /***** mark the layer as updated *****/
-        bUpdated = true;
     }
 }
 
@@ -383,12 +371,12 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature()
     while( true )
     {
         OGRFeature *poFeature = GetNextRawFeature();
-        if( poFeature == NULL )
-            return NULL;
+        if( poFeature == nullptr )
+            return nullptr;
 
-        if( (m_poFilterGeom == NULL
+        if( (m_poFilterGeom == nullptr
              || FilterGeometry( poFeature->GetGeometryRef() ) )
-            && (m_poAttrQuery == NULL
+            && (m_poAttrQuery == nullptr
                 || m_poAttrQuery->Evaluate( poFeature )) )
         {
             return poFeature;
@@ -409,10 +397,10 @@ OGRFeature *OGRLIBKMLLayer::GetNextFeature()
 
 OGRFeature *OGRLIBKMLLayer::GetNextRawFeature()
 {
-    OGRFeature *poOgrFeature = NULL;
+    OGRFeature *poOgrFeature = nullptr;
 
-    if( m_poKmlLayer == NULL )
-        return NULL;
+    if( !m_poKmlLayer )
+        return nullptr;
 
     /***** loop over the kml features to find the next placemark *****/
 
@@ -471,7 +459,7 @@ OGRErr OGRLIBKMLLayer::ICreateFeature( OGRFeature * poOgrFeat )
     if( !bUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
 
-    if( m_bRegionBoundsAuto && poOgrFeat->GetGeometryRef() != NULL &&
+    if( m_bRegionBoundsAuto && poOgrFeat->GetGeometryRef() != nullptr &&
         !(poOgrFeat->GetGeometryRef()->IsEmpty()) )
     {
         OGREnvelope sEnvelope;
@@ -486,13 +474,13 @@ OGRErr OGRLIBKMLLayer::ICreateFeature( OGRFeature * poOgrFeat )
         feat2kml( m_poOgrDS, this, poOgrFeat, m_poOgrDS->GetKmlFactory(),
                   m_bUseSimpleField );
 
-    if( m_poKmlLayer != NULL )
+    if( m_poKmlLayer )
     {
         m_poKmlLayer->add_feature( poKmlFeature );
     }
     else
     {
-        CPLAssert( m_poKmlUpdate != NULL );
+        CPLAssert( m_poKmlUpdate != nullptr );
         KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory();
         CreatePtr poCreate = poKmlFactory->CreateCreate();
         ContainerPtr poContainer;
@@ -507,7 +495,7 @@ OGRErr OGRLIBKMLLayer::ICreateFeature( OGRFeature * poOgrFeat )
     }
 
     /***** update the layer class count of features  *****/
-    if( m_poKmlLayer != NULL )
+    if( m_poKmlLayer )
     {
         nFeatures++;
 
@@ -544,8 +532,7 @@ OGRErr OGRLIBKMLLayer::ICreateFeature( OGRFeature * poOgrFeat )
         }
     }
 
-    /***** mark the layer as updated *****/
-    bUpdated = true;
+    /***** mark as updated *****/
     m_poOgrDS->Updated();
 
     return OGRERR_NONE;
@@ -565,7 +552,7 @@ OGRErr OGRLIBKMLLayer::ICreateFeature( OGRFeature * poOgrFeat )
 
 OGRErr OGRLIBKMLLayer::ISetFeature( OGRFeature * poOgrFeat )
 {
-    if( !bUpdate || m_poKmlUpdate == NULL )
+    if( !bUpdate || !m_poKmlUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
     if( poOgrFeat->GetFID() == OGRNullFID )
         return OGRERR_FAILURE;
@@ -583,8 +570,7 @@ OGRErr OGRLIBKMLLayer::ISetFeature( OGRFeature * poOgrFeat )
                     OGRLIBKMLGetSanitizedNCName(GetName()).c_str(), poOgrFeat->GetFID());
     poKmlFeature->set_targetid(pszId);
 
-    /***** mark the layer as updated *****/
-    bUpdated = true;
+    /***** mark as updated *****/
     m_poOgrDS->Updated();
 
     return OGRERR_NONE;
@@ -604,7 +590,7 @@ OGRErr OGRLIBKMLLayer::ISetFeature( OGRFeature * poOgrFeat )
 
 OGRErr OGRLIBKMLLayer::DeleteFeature( GIntBig nFIDIn )
 {
-    if( !bUpdate || m_poKmlUpdate == NULL )
+    if( !bUpdate || !m_poKmlUpdate )
         return OGRERR_UNSUPPORTED_OPERATION;
 
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory();
@@ -617,8 +603,7 @@ OGRErr OGRLIBKMLLayer::DeleteFeature( GIntBig nFIDIn )
                     OGRLIBKMLGetSanitizedNCName(GetName()).c_str(), nFIDIn);
     poKmlPlacemark->set_targetid(pszId);
 
-    /***** mark the layer as updated *****/
-    bUpdated = true;
+    /***** mark as updated *****/
     m_poOgrDS->Updated();
 
     return OGRERR_NONE;
@@ -638,12 +623,12 @@ OGRErr OGRLIBKMLLayer::DeleteFeature( GIntBig nFIDIn )
 
 GIntBig OGRLIBKMLLayer::GetFeatureCount( int bForce )
 {
-    if( m_poFilterGeom != NULL || m_poAttrQuery != NULL )
+    if( m_poFilterGeom != nullptr || m_poAttrQuery != nullptr )
     {
         return static_cast<int>(OGRLayer::GetFeatureCount( bForce ));
     }
 
-    if( m_poKmlLayer == NULL )
+    if( !m_poKmlLayer )
       return 0;
 
     int count = 0;
@@ -690,7 +675,7 @@ OGRErr OGRLIBKMLLayer::GetExtent( OGREnvelope * psExtent, int bForce )
 {
     Bbox oKmlBbox;
 
-    if( m_poKmlLayer != NULL &&
+    if( m_poKmlLayer &&
         kmlengine::GetFeatureBounds( AsFeature( m_poKmlLayer ), &oKmlBbox ) )
     {
         psExtent->MinX = oKmlBbox.get_west();
@@ -724,12 +709,12 @@ OGRErr OGRLIBKMLLayer::CreateField(
 
     if( m_bUseSimpleField )
     {
-        SimpleFieldPtr poKmlSimpleField = NULL;
+        SimpleFieldPtr poKmlSimpleField = nullptr;
 
         if( (poKmlSimpleField =
-                 FieldDef2kml( poField, m_poOgrDS->GetKmlFactory() )) != NULL )
+                 FieldDef2kml( poField, m_poOgrDS->GetKmlFactory() )) )
         {
-            if( m_poKmlSchema == NULL )
+            if( !m_poKmlSchema )
             {
                 /***** Create a new schema *****/
                 KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory();
@@ -749,8 +734,7 @@ OGRErr OGRLIBKMLLayer::CreateField(
 
     m_poOgrFeatureDefn->AddFieldDefn( poField );
 
-    /***** mark the layer as updated *****/
-    bUpdated = true;
+    /***** mark as updated *****/
     m_poOgrDS->Updated();
 
     return OGRERR_NONE;
@@ -767,6 +751,7 @@ OGRErr OGRLIBKMLLayer::CreateField(
 
 OGRErr OGRLIBKMLLayer::SyncToDisk()
 {
+    m_poOgrDS->FlushCache();
     return OGRERR_NONE;
 }
 
@@ -797,7 +782,7 @@ OGRStyleTable *OGRLIBKMLLayer::GetStyleTable()
 
 void OGRLIBKMLLayer::SetStyleTableDirectly( OGRStyleTable * poStyleTable )
 {
-    if( !bUpdate || m_poKmlLayer == NULL )
+    if( !bUpdate || !m_poKmlLayer )
         return;
 
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory();
@@ -824,8 +809,7 @@ void OGRLIBKMLLayer::SetStyleTableDirectly( OGRStyleTable * poStyleTable )
                         AsContainer( poKmlDocument ) );
     }
 
-    /***** mark the layer as updated *****/
-    bUpdated = true;
+    /***** mark as updated *****/
     m_poOgrDS->Updated();
 }
 
@@ -842,13 +826,13 @@ void OGRLIBKMLLayer::SetStyleTableDirectly( OGRStyleTable * poStyleTable )
 
 void OGRLIBKMLLayer::SetStyleTable( OGRStyleTable * poStyleTable )
 {
-    if( !bUpdate || m_poKmlLayer == NULL )
+    if( !bUpdate || !m_poKmlLayer )
         return;
 
     if( poStyleTable )
         SetStyleTableDirectly( poStyleTable->Clone() );
     else
-        SetStyleTableDirectly( NULL );
+        SetStyleTableDirectly( nullptr );
 }
 
 /******************************************************************************
@@ -870,7 +854,7 @@ int OGRLIBKMLLayer::TestCapability( const char *pszCap )
     else if( EQUAL( pszCap, OLCSequentialWrite ) )
         result = bUpdate;
     else if( EQUAL( pszCap, OLCRandomWrite ) )
-        result = FALSE;
+        result = bUpdate;
     else if( EQUAL( pszCap, OLCFastFeatureCount ) )
         result = FALSE;
     else if( EQUAL( pszCap, OLCFastSetNextByIndex ) )
@@ -878,7 +862,7 @@ int OGRLIBKMLLayer::TestCapability( const char *pszCap )
     else if( EQUAL( pszCap, OLCCreateField ) )
         result = bUpdate;
     else if( EQUAL( pszCap, OLCDeleteFeature ) )
-        result = FALSE;
+        result = bUpdate && m_poKmlUpdate;
     else if( EQUAL( pszCap, OLCStringsAsUTF8 ) )
         result = TRUE;
 
@@ -922,11 +906,11 @@ void OGRLIBKMLLayer::SetLookAt( const char* pszLookatLongitude,
     LookAtPtr lookAt = poKmlFactory->CreateLookAt();
     lookAt->set_latitude(CPLAtof(pszLookatLatitude));
     lookAt->set_longitude(CPLAtof(pszLookatLongitude));
-    if( pszLookatAltitude != NULL )
+    if( pszLookatAltitude != nullptr )
         lookAt->set_altitude(CPLAtof(pszLookatAltitude));
-    if( pszLookatHeading != NULL )
+    if( pszLookatHeading != nullptr )
         lookAt->set_heading(CPLAtof(pszLookatHeading));
-    if( pszLookatTilt != NULL )
+    if( pszLookatTilt != nullptr )
     {
         double dfTilt = CPLAtof(pszLookatTilt);
         if( dfTilt >= 0 && dfTilt <= 90 )
@@ -936,13 +920,13 @@ void OGRLIBKMLLayer::SetLookAt( const char* pszLookatLongitude,
                      pszLookatTilt);
     }
     lookAt->set_range(CPLAtof(pszLookatRange));
-    if( pszLookatAltitudeMode != NULL )
+    if( pszLookatAltitudeMode != nullptr )
     {
         int isGX = FALSE;
         const int iAltitudeMode =
             kmlAltitudeModeFromString(pszLookatAltitudeMode, isGX);
         if( iAltitudeMode != kmldom::ALTITUDEMODE_CLAMPTOGROUND &&
-            pszLookatAltitude == NULL )
+            pszLookatAltitude == nullptr )
         {
             CPLError(CE_Warning, CPLE_AppDefined,
                      "Lookat altitude should be present for altitudeMode = %s",
@@ -987,10 +971,10 @@ void OGRLIBKMLLayer::SetCamera( const char* pszCameraLongitude,
     camera->set_latitude(CPLAtof(pszCameraLatitude));
     camera->set_longitude(CPLAtof(pszCameraLongitude));
     camera->set_altitude(CPLAtof(pszCameraAltitude));
-    if( pszCameraHeading != NULL )
+    if( pszCameraHeading != nullptr )
         camera->set_heading(CPLAtof(pszCameraHeading));
 
-    if( pszCameraTilt != NULL )
+    if( pszCameraTilt != nullptr )
     {
         double dfTilt = CPLAtof(pszCameraTilt);
         if( dfTilt >= 0 && dfTilt <= 90 )
@@ -1000,7 +984,7 @@ void OGRLIBKMLLayer::SetCamera( const char* pszCameraLongitude,
                      pszCameraTilt);
     }
 
-    if( pszCameraRoll != NULL )
+    if( pszCameraRoll != nullptr )
         camera->set_roll(CPLAtof(pszCameraRoll));
     if( isGX )
         camera->set_gx_altitudemode(iAltitudeMode);
@@ -1112,13 +1096,13 @@ static void LIBKMLSetVec2(
     vec2->set_y(dfY);
     if( dfX <= 1 && dfY <= 1 )
     {
-        if( pszXUnits == NULL ) pszXUnits = "fraction";
-        if( pszYUnits == NULL ) pszYUnits = "fraction";
+        if( pszXUnits == nullptr ) pszXUnits = "fraction";
+        if( pszYUnits == nullptr ) pszYUnits = "fraction";
     }
     else
     {
-        if( pszXUnits == NULL ) pszXUnits = "pixels";
-        if( pszYUnits == NULL ) pszYUnits = "pixels";
+        if( pszXUnits == nullptr ) pszXUnits = "pixels";
+        if( pszYUnits == nullptr ) pszYUnits = "pixels";
     }
     vec2->set_xunits(LIBKMLGetUnits(pszXUnits));
     vec2->set_yunits(LIBKMLGetUnits(pszYUnits));
@@ -1147,16 +1131,16 @@ void OGRLIBKMLLayer::SetScreenOverlay( const char* pszSOHref,
     KmlFactory *poKmlFactory = m_poOgrDS->GetKmlFactory();
     ScreenOverlayPtr so = poKmlFactory->CreateScreenOverlay();
 
-    if( pszSOName != NULL )
+    if( pszSOName != nullptr )
         so->set_name(pszSOName);
-    if( pszSODescription != NULL )
+    if( pszSODescription != nullptr )
         so->set_description(pszSODescription);
 
     IconPtr icon = poKmlFactory->CreateIcon();
     icon->set_href(pszSOHref);
     so->set_icon(icon);
 
-    if( pszSOOverlayX != NULL && pszSOOverlayY != NULL )
+    if( pszSOOverlayX != nullptr && pszSOOverlayY != nullptr )
     {
         kmldom::OverlayXYPtr overlayxy = poKmlFactory->CreateOverlayXY();
         LIBKMLSetVec2(overlayxy, pszSOOverlayX, pszSOOverlayY,
@@ -1164,7 +1148,7 @@ void OGRLIBKMLLayer::SetScreenOverlay( const char* pszSOHref,
         so->set_overlayxy(overlayxy);
     }
 
-    if( pszSOScreenX != NULL && pszSOScreenY != NULL )
+    if( pszSOScreenX != nullptr && pszSOScreenY != nullptr )
     {
         kmldom::ScreenXYPtr screenxy = poKmlFactory->CreateScreenXY();
         LIBKMLSetVec2(screenxy, pszSOScreenX, pszSOScreenY,
@@ -1174,11 +1158,11 @@ void OGRLIBKMLLayer::SetScreenOverlay( const char* pszSOHref,
     else
     {
         kmldom::ScreenXYPtr screenxy = poKmlFactory->CreateScreenXY();
-        LIBKMLSetVec2(screenxy, "0.05", "0.05", NULL, NULL);
+        LIBKMLSetVec2(screenxy, "0.05", "0.05", nullptr, nullptr);
         so->set_screenxy(screenxy);
     }
 
-    if( pszSOSizeX != NULL && pszSOSizeY != NULL )
+    if( pszSOSizeX != nullptr && pszSOSizeY != nullptr )
     {
         kmldom::SizePtr sizexy = poKmlFactory->CreateSize();
         LIBKMLSetVec2(sizexy, pszSOSizeX, pszSOSizeY,

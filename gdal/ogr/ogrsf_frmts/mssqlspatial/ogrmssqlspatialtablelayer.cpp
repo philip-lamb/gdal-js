@@ -29,11 +29,12 @@
 
 #include "cpl_conv.h"
 #include "ogr_mssqlspatial.h"
+#include "ogr_p.h"
 #ifdef SQLNCLI_VERSION
 #include <sqlncli.h>
 #endif
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                         OGRMSSQLAppendEscaped( )                     */
@@ -87,7 +88,7 @@ OGRMSSQLSpatialTableLayer::OGRMSSQLSpatialTableLayer( OGRMSSQLSpatialDataSource 
 {
     poDS = poDSIn;
 
-    pszQuery = NULL;
+    pszQuery = nullptr;
 
     bUpdateAccess = TRUE;
 
@@ -95,11 +96,11 @@ OGRMSSQLSpatialTableLayer::OGRMSSQLSpatialTableLayer( OGRMSSQLSpatialDataSource 
 
     nSRSId = -1;
 
-    poFeatureDefn = NULL;
+    poFeatureDefn = nullptr;
 
-    pszTableName = NULL;
-    pszLayerName = NULL;
-    pszSchemaName = NULL;
+    pszTableName = nullptr;
+    pszLayerName = nullptr;
+    pszSchemaName = nullptr;
 
     bNeedSpatialIndex = FALSE;
 #ifdef SQL_SS_UDT
@@ -110,9 +111,9 @@ OGRMSSQLSpatialTableLayer::OGRMSSQLSpatialTableLayer( OGRMSSQLSpatialDataSource 
 
     bUseCopy = FALSE;
     nBCPSize = 1000;
-    papstBindBuffer = NULL;
-    hEnvBCP = NULL;
-    hDBCBCP = NULL;
+    papstBindBuffer = nullptr;
+    hEnvBCP = nullptr;
+    hDBCBCP = nullptr;
     nBCPCount = 0;
     bIdentityInsert = FALSE;
 }
@@ -176,7 +177,7 @@ OGRFeatureDefn* OGRMSSQLSpatialTableLayer::GetLayerDefn()
         {
             oGetKey.Clear();
             CPLFree( pszFIDColumn );
-            pszFIDColumn = NULL;
+            pszFIDColumn = nullptr;
 
             CPLDebug( "OGR_MSSQLSpatial", "Table %s has multiple primary key fields, "
                       "ignoring them all.", pszTableName );
@@ -190,11 +191,11 @@ OGRFeatureDefn* OGRMSSQLSpatialTableLayer::GetLayerDefn()
     CPLErr eErr;
 
     if( !oGetCol.GetColumns( pszTableName, poDS->GetCatalog(), pszSchemaName ) )
-        return NULL;
+        return nullptr;
 
     eErr = BuildFeatureDefn( pszLayerName, &oGetCol );
     if( eErr != CE_None )
-        return NULL;
+        return nullptr;
 
     if (eGeomType != wkbNone)
         poFeatureDefn->SetGeomType(eGeomType);
@@ -203,18 +204,18 @@ OGRFeatureDefn* OGRMSSQLSpatialTableLayer::GetLayerDefn()
         poFeatureDefn->GetGeomFieldDefn(0)->SetSpatialRef( poSRS );
 
     if( poFeatureDefn->GetFieldCount() == 0 &&
-        pszFIDColumn == NULL && pszGeomColumn == NULL )
+        pszFIDColumn == nullptr && pszGeomColumn == nullptr )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "No column definitions found for table '%s', layer not usable.",
                   pszLayerName );
-        return NULL;
+        return nullptr;
     }
 
 /* -------------------------------------------------------------------- */
 /*      If we got a geometry column, does it exist?  Is it binary?      */
 /* -------------------------------------------------------------------- */
-    if( pszGeomColumn != NULL )
+    if( pszGeomColumn != nullptr )
     {
         int iColumn = oGetCol.GetColId( pszGeomColumn );
         if( iColumn < 0 )
@@ -223,7 +224,7 @@ OGRFeatureDefn* OGRMSSQLSpatialTableLayer::GetLayerDefn()
                       "Column %s requested for geometry, but it does not exist.",
                       pszGeomColumn );
             CPLFree( pszGeomColumn );
-            pszGeomColumn = NULL;
+            pszGeomColumn = nullptr;
         }
         else
         {
@@ -250,7 +251,7 @@ OGRFeatureDefn* OGRMSSQLSpatialTableLayer::GetLayerDefn()
                           "Column type %s is not supported for geometry column.",
                           oGetCol.GetColTypeName( iColumn ) );
                     CPLFree( pszGeomColumn );
-                    pszGeomColumn = NULL;
+                    pszGeomColumn = nullptr;
                 }
             }
         }
@@ -272,7 +273,7 @@ CPLErr OGRMSSQLSpatialTableLayer::Initialize( const char *pszSchema,
                                               OGRwkbGeometryType eType )
 {
     CPLFree( pszFIDColumn );
-    pszFIDColumn = NULL;
+    pszFIDColumn = nullptr;
 
 /* -------------------------------------------------------------------- */
 /*      Parse out schema name if present in layer.  We assume a         */
@@ -280,21 +281,32 @@ CPLErr OGRMSSQLSpatialTableLayer::Initialize( const char *pszSchema,
 /*      it is in the form <schema>.<tablename>                          */
 /* -------------------------------------------------------------------- */
     const char *pszDot = strstr(pszLayerNameIn,".");
-    if( pszDot != NULL )
+    if( pszDot != nullptr )
     {
         pszTableName = CPLStrdup(pszDot + 1);
-        pszSchemaName = CPLStrdup(pszLayerNameIn);
-        pszSchemaName[pszDot - pszLayerNameIn] = '\0';
+        if (pszSchema == nullptr)
+        {
+            pszSchemaName = CPLStrdup(pszLayerNameIn);
+            pszSchemaName[pszDot - pszLayerNameIn] = '\0';
+        }
+        else
+            pszSchemaName = CPLStrdup(pszSchema);
+
         this->pszLayerName = CPLStrdup(pszLayerNameIn);
     }
     else
     {
         pszTableName = CPLStrdup(pszLayerNameIn);
-        pszSchemaName = CPLStrdup(pszSchema);
-        if ( EQUAL(pszSchemaName, "dbo") )
+        if ( pszSchema == nullptr || EQUAL(pszSchema, "dbo") )
+        {
+            pszSchemaName = CPLStrdup("dbo");
             this->pszLayerName = CPLStrdup(pszLayerNameIn);
+        }
         else
+        {
+            pszSchemaName = CPLStrdup(pszSchema);
             this->pszLayerName = CPLStrdup(CPLSPrintf("%s.%s", pszSchemaName, pszTableName));
+        }
     }
     SetDescription( this->pszLayerName );
 
@@ -302,7 +314,7 @@ CPLErr OGRMSSQLSpatialTableLayer::Initialize( const char *pszSchema,
 /*      Have we been provided a geometry column?                        */
 /* -------------------------------------------------------------------- */
     CPLFree( pszGeomColumn );
-    if( pszGeomCol == NULL )
+    if( pszGeomCol == nullptr )
         GetLayerDefn(); /* fetch geom column if not specified */
     else
         pszGeomColumn = CPLStrdup( pszGeomCol );
@@ -320,10 +332,10 @@ CPLErr OGRMSSQLSpatialTableLayer::Initialize( const char *pszSchema,
     {
         /* Process srtext directly if specified */
         poSRS = new OGRSpatialReference();
-        if( poSRS->importFromWkt( (char**)&pszSRText ) != OGRERR_NONE )
+        if( poSRS->importFromWkt( pszSRText ) != OGRERR_NONE )
         {
             delete poSRS;
-            poSRS = NULL;
+            poSRS = nullptr;
         }
     }
 
@@ -369,7 +381,7 @@ int OGRMSSQLSpatialTableLayer::FetchSRSId()
 
 OGRErr OGRMSSQLSpatialTableLayer::CreateSpatialIndex()
 {
-    GetLayerDefn();
+    OGRMSSQLSpatialTableLayer::GetLayerDefn();
 
     CPLODBCStatement oStatement( poDS->GetSession() );
 
@@ -425,7 +437,7 @@ OGRErr OGRMSSQLSpatialTableLayer::CreateSpatialIndex()
 
 void OGRMSSQLSpatialTableLayer::DropSpatialIndex()
 {
-    GetLayerDefn();
+    OGRMSSQLSpatialTableLayer::GetLayerDefn();
 
     CPLODBCStatement oStatement( poDS->GetSession() );
 
@@ -539,10 +551,10 @@ CPLString OGRMSSQLSpatialTableLayer::BuildFields()
 void OGRMSSQLSpatialTableLayer::ClearStatement()
 
 {
-    if( poStmt != NULL )
+    if( poStmt != nullptr )
     {
         delete poStmt;
-        poStmt = NULL;
+        poStmt = nullptr;
     }
 }
 
@@ -553,7 +565,7 @@ void OGRMSSQLSpatialTableLayer::ClearStatement()
 CPLODBCStatement *OGRMSSQLSpatialTableLayer::GetStatement()
 
 {
-    if( poStmt == NULL )
+    if( poStmt == nullptr )
     {
         poStmt = BuildStatement(BuildFields());
         iNextShapeId = 0;
@@ -572,22 +584,23 @@ CPLODBCStatement* OGRMSSQLSpatialTableLayer::BuildStatement(const char* pszColum
     CPLODBCStatement* poStatement = new CPLODBCStatement( poDS->GetSession() );
     poStatement->Append( "select " );
     poStatement->Append( pszColumns );
-    poStatement->Append( " from " );
+    poStatement->Append( " from [" );
     poStatement->Append( pszSchemaName );
-    poStatement->Append( "." );
+    poStatement->Append( "].[" );
     poStatement->Append( pszTableName );
+    poStatement->Append( "]" );
 
     /* Append attribute query if we have it */
-    if( pszQuery != NULL )
+    if( pszQuery != nullptr )
         poStatement->Appendf( " where (%s)", pszQuery );
 
     /* If we have a spatial filter, query on it */
-    if ( m_poFilterGeom != NULL )
+    if ( m_poFilterGeom != nullptr )
     {
         if (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
             || nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY)
         {
-            if( pszQuery == NULL )
+            if( pszQuery == nullptr )
                 poStatement->Append( " where" );
             else
                 poStatement->Append( " and" );
@@ -618,7 +631,7 @@ CPLODBCStatement* OGRMSSQLSpatialTableLayer::BuildStatement(const char* pszColum
                       "Spatial filter is supported only on geometry and geography column types." );
 
             delete poStatement;
-            return NULL;
+            return nullptr;
         }
     }
 
@@ -628,7 +641,7 @@ CPLODBCStatement* OGRMSSQLSpatialTableLayer::BuildStatement(const char* pszColum
     else
     {
         delete poStatement;
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -650,8 +663,10 @@ void OGRMSSQLSpatialTableLayer::ResetReading()
 OGRFeature *OGRMSSQLSpatialTableLayer::GetFeature( GIntBig nFeatureId )
 
 {
-    if( pszFIDColumn == NULL )
+    if( pszFIDColumn == nullptr )
         return OGRMSSQLSpatialLayer::GetFeature( nFeatureId );
+
+    poDS->EndCopy();
 
     ClearStatement();
 
@@ -665,8 +680,8 @@ OGRFeature *OGRMSSQLSpatialTableLayer::GetFeature( GIntBig nFeatureId )
     if( !poStmt->ExecuteSQL() )
     {
         delete poStmt;
-        poStmt = NULL;
-        return NULL;
+        poStmt = nullptr;
+        return nullptr;
     }
 
     return GetNextRawFeature();
@@ -680,15 +695,15 @@ OGRErr OGRMSSQLSpatialTableLayer::SetAttributeFilter( const char *pszQueryIn )
 
 {
     CPLFree(m_pszAttrQueryString);
-    m_pszAttrQueryString = (pszQueryIn) ? CPLStrdup(pszQueryIn) : NULL;
+    m_pszAttrQueryString = (pszQueryIn) ? CPLStrdup(pszQueryIn) : nullptr;
 
-    if( (pszQueryIn == NULL && this->pszQuery == NULL)
-        || (pszQueryIn != NULL && this->pszQuery != NULL
+    if( (pszQueryIn == nullptr && this->pszQuery == nullptr)
+        || (pszQueryIn != nullptr && this->pszQuery != nullptr
             && EQUAL(pszQueryIn,this->pszQuery)) )
         return OGRERR_NONE;
 
     CPLFree( this->pszQuery );
-    this->pszQuery = (pszQueryIn) ? CPLStrdup( pszQueryIn ) : NULL;
+    this->pszQuery = (pszQueryIn) ? CPLStrdup( pszQueryIn ) : nullptr;
 
     ClearStatement();
 
@@ -709,7 +724,7 @@ int OGRMSSQLSpatialTableLayer::TestCapability( const char * pszCap )
             return TRUE;
 
         else if( EQUAL(pszCap,OLCRandomWrite) )
-            return pszFIDColumn != NULL;
+            return pszFIDColumn != nullptr;
     }
 
 #if (ODBCVER >= 0x0300)
@@ -724,7 +739,7 @@ int OGRMSSQLSpatialTableLayer::TestCapability( const char * pszCap )
         return TRUE;
 
     if( EQUAL(pszCap,OLCRandomRead) )
-        return pszFIDColumn != NULL;
+        return pszFIDColumn != nullptr;
     else if( EQUAL(pszCap,OLCFastFeatureCount) )
         return TRUE;
     else
@@ -738,6 +753,8 @@ int OGRMSSQLSpatialTableLayer::TestCapability( const char * pszCap )
 GIntBig OGRMSSQLSpatialTableLayer::GetFeatureCount( int bForce )
 
 {
+    poDS->EndCopy();
+
     GetLayerDefn();
 
     if( TestCapability(OLCFastFeatureCount) == FALSE )
@@ -747,7 +764,7 @@ GIntBig OGRMSSQLSpatialTableLayer::GetFeatureCount( int bForce )
 
     CPLODBCStatement* poStatement = BuildStatement( "count(*)" );
 
-    if (poStatement == NULL || !poStatement->Fetch())
+    if (poStatement == nullptr || !poStatement->Fetch())
     {
         delete poStatement;
         return OGRMSSQLSpatialLayer::GetFeatureCount( bForce );
@@ -756,6 +773,29 @@ GIntBig OGRMSSQLSpatialTableLayer::GetFeatureCount( int bForce )
     GIntBig nRet = CPLAtoGIntBig(poStatement->GetColData( 0 ));
     delete poStatement;
     return nRet;
+}
+
+/************************************************************************/
+/*                             StartCopy()                              */
+/************************************************************************/
+
+OGRErr OGRMSSQLSpatialTableLayer::StartCopy()
+
+{
+    return OGRERR_NONE;
+}
+
+/************************************************************************/
+/*                              EndCopy()                               */
+/************************************************************************/
+
+OGRErr OGRMSSQLSpatialTableLayer::EndCopy()
+
+{
+#ifdef MSSQL_BCP_SUPPORTED
+    CloseBCP();
+#endif
+    return OGRERR_NONE;
 }
 
 /************************************************************************/
@@ -768,6 +808,8 @@ OGRErr OGRMSSQLSpatialTableLayer::CreateField( OGRFieldDefn *poFieldIn,
 {
     char                szFieldType[256];
     OGRFieldDefn        oField( poFieldIn );
+
+    poDS->EndCopy();
 
     GetLayerDefn();
 
@@ -864,7 +906,7 @@ OGRErr OGRMSSQLSpatialTableLayer::CreateField( OGRFieldDefn *poFieldIn,
     {
         oStmt.Append(" NOT NULL");
     }
-    if ( oField.GetDefault() != NULL && !oField.IsDefaultDriverSpecific() )
+    if ( oField.GetDefault() != nullptr && !oField.IsDefaultDriverSpecific() )
     {
         /* process default value specifications */
         if ( EQUAL(oField.GetDefault(), "CURRENT_TIME") )
@@ -904,9 +946,11 @@ OGRErr OGRMSSQLSpatialTableLayer::ISetFeature( OGRFeature *poFeature )
 {
     OGRErr              eErr = OGRERR_FAILURE;
 
+    poDS->EndCopy();
+
     GetLayerDefn();
 
-    if( NULL == poFeature )
+    if( nullptr == poFeature )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "NULL pointer to OGRFeature passed to SetFeature()." );
@@ -952,7 +996,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ISetFeature( OGRFeature *poFeature )
 
     int bNeedComma = FALSE;
     SQLLEN nWKBLenBindParameter;
-    if(poGeom != NULL && pszGeomColumn != NULL)
+    if(poGeom != nullptr && pszGeomColumn != nullptr)
     {
         oStmt.Appendf( "[%s] = ", pszGeomColumn );
 
@@ -991,7 +1035,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ISetFeature( OGRFeature *poFeature )
             int nWKBLen = poGeom->WkbSize();
             GByte *pabyWKB = (GByte *) CPLMalloc(nWKBLen + 1);
 
-            if( poGeom->exportToWkb( wkbNDR, pabyWKB ) == OGRERR_NONE && (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
+            if( poGeom->exportToWkb( wkbNDR, pabyWKB, wkbVariantIso ) == OGRERR_NONE && (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
                 || nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY))
             {
                 nWKBLenBindParameter = nWKBLen;
@@ -1027,7 +1071,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ISetFeature( OGRFeature *poFeature )
         }
         else if (nUploadGeometryFormat == MSSQLGEOMETRY_WKT)
         {
-            char    *pszWKT = NULL;
+            char    *pszWKT = nullptr;
             if( poGeom->exportToWkt( &pszWKT ) == OGRERR_NONE && (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
                 || nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY))
             {
@@ -1037,7 +1081,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ISetFeature( OGRFeature *poFeature )
 
                 int nRetCode = SQLBindParameter(oStmt.GetStatement(), (SQLUSMALLINT)(bind_num + 1),
                     SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR,
-                    nLen, 0, (SQLPOINTER)pszWKT, 0, NULL);
+                    nLen, 0, (SQLPOINTER)pszWKT, 0, nullptr);
                 if ( nRetCode == SQL_SUCCESS || nRetCode == SQL_SUCCESS_WITH_INFO )
                 {
                     if (nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY)
@@ -1125,9 +1169,11 @@ OGRErr OGRMSSQLSpatialTableLayer::ISetFeature( OGRFeature *poFeature )
 OGRErr OGRMSSQLSpatialTableLayer::DeleteFeature( GIntBig nFID )
 
 {
+    poDS->EndCopy();
+
     GetLayerDefn();
 
-    if( pszFIDColumn == NULL )
+    if( pszFIDColumn == nullptr )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "DeleteFeature() without any FID column." );
@@ -1287,23 +1333,11 @@ void OGRMSSQLSpatialTableLayer::CloseBCP()
         for( iCol = 0; iCol < nRawColumns; iCol++ )
             CPLFree(papstBindBuffer[iCol]);
         CPLFree(papstBindBuffer);
+        papstBindBuffer = NULL;
 
         if( bIdentityInsert )
         {
             bIdentityInsert = FALSE;
-
-            /* restore identity insert if needed */
-            CPLODBCStatement oStatement( poDS->GetSession() );
-
-            oStatement.Appendf( "SET IDENTITY_INSERT [%s].[%s] OFF;",
-                                pszSchemaName, pszTableName );
-
-            if( !oStatement.ExecuteSQL() )
-            {
-                CPLError( CE_Failure, CPLE_AppDefined,
-                                "Failed to set identity insert on layer, %s.",
-                                poDS->GetSession()->GetLastError());
-            }
         }
     }
 
@@ -1336,6 +1370,9 @@ OGRErr OGRMSSQLSpatialTableLayer::CreateFeatureBCP( OGRFeature *poFeature )
     {
         nBCPCount = 0;
 
+        /* Tell the datasource we are now planning to copy data */
+        poDS->StartCopy(this);
+
         CPLODBCSession* poSession = poDS->GetSession();
 
         if (poSession->IsInTransaction())
@@ -1354,19 +1391,6 @@ OGRErr OGRMSSQLSpatialTableLayer::CreateFeatureBCP( OGRFeature *poFeature )
 
         if( poFeature->GetFID() != OGRNullFID && pszFIDColumn != NULL && bIsIdentityFid )
         {
-            CPLODBCStatement oStatement( poSession );
-
-            oStatement.Appendf( "SET IDENTITY_INSERT [%s].[%s] ON;",
-                                pszSchemaName, pszTableName );
-
-            if( !oStatement.ExecuteSQL() )
-            {
-                CPLError( CE_Failure, CPLE_AppDefined,
-                                "Failed to set identity insert on layer, %s.",
-                                poDS->GetSession()->GetLastError());
-                return OGRERR_FAILURE;
-            }
-
             bIdentityInsert = TRUE;
         }
 
@@ -1673,10 +1697,10 @@ OGRErr OGRMSSQLSpatialTableLayer::CreateFeatureBCP( OGRFeature *poFeature )
 
                         papstBindBuffer[iCol]->VarChar.nSize = (SQLLEN)CPLStrlenUTF8(poFeature->GetFieldAsString(iField)) * 2;
                         wchar_t* buffer = CPLRecodeToWChar( poFeature->GetFieldAsString(iField), CPL_ENC_UTF8, CPL_ENC_UCS2);
-                        memcpy(papstBindBuffer[iCol]->VarChar.pData, buffer, (DBINT)papstBindBuffer[iCol]->VarChar.nSize + 2);
+                        memcpy(papstBindBuffer[iCol]->VarChar.pData, buffer, papstBindBuffer[iCol]->VarChar.nSize + 2);
                         CPLFree(buffer);
 
-                        if (Failed2( bcp_collen( hDBCBCP, papstBindBuffer[iCol]->VarChar.nSize, iCol + 1) ))
+                        if (Failed2( bcp_collen( hDBCBCP, (DBINT)papstBindBuffer[iCol]->VarChar.nSize, iCol + 1) ))
                             return OGRERR_FAILURE;
                     }
                 }
@@ -1932,7 +1956,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
 {
     GetLayerDefn();
 
-    if( NULL == poFeature )
+    if( nullptr == poFeature )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
                   "NULL pointer to OGRFeature passed to CreateFeature()." );
@@ -1953,7 +1977,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
     /* the fid values are retrieved from the source layer */
     CPLODBCStatement oStatement( poSession );
 
-    if( poFeature->GetFID() != OGRNullFID && pszFIDColumn != NULL && bIsIdentityFid )
+    if( poFeature->GetFID() != OGRNullFID && pszFIDColumn != nullptr && bIsIdentityFid )
         oStatement.Appendf( "SET IDENTITY_INSERT [%s].[%s] ON;",
                             pszSchemaName, pszTableName );
 
@@ -1975,7 +1999,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
 
     int bNeedComma = FALSE;
 
-    if (poGeom != NULL && pszGeomColumn != NULL)
+    if (poGeom != nullptr && pszGeomColumn != nullptr)
     {
         oStatement.Append("([");
         oStatement.Append( pszGeomColumn );
@@ -1983,10 +2007,10 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
         bNeedComma = TRUE;
     }
 
-    if( nFID != OGRNullFID && pszFIDColumn != NULL )
+    if( nFID != OGRNullFID && pszFIDColumn != nullptr )
     {
         if( !CPL_INT64_FITS_ON_INT32(nFID) &&
-            GetMetadataItem(OLMD_FID64) == NULL )
+            GetMetadataItem(OLMD_FID64) == nullptr )
         {
             /* MSSQL server doesn't support modifying pk columns without recreating the field */
             CPLError( CE_Failure, CPLE_AppDefined,
@@ -2039,7 +2063,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
 
         /* Set the geometry */
         bNeedComma = FALSE;
-        if(poGeom != NULL && pszGeomColumn != NULL)
+        if(poGeom != nullptr && pszGeomColumn != nullptr)
         {
             if (nUploadGeometryFormat == MSSQLGEOMETRY_NATIVE)
             {
@@ -2088,7 +2112,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
                 int nWKBLen = poGeom->WkbSize();
                 GByte *pabyWKB = (GByte *) CPLMalloc(nWKBLen + 1);
 
-                if( poGeom->exportToWkb( wkbNDR, pabyWKB ) == OGRERR_NONE && (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
+                if( poGeom->exportToWkb( wkbNDR, pabyWKB, wkbVariantIso ) == OGRERR_NONE && (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
                     || nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY))
                 {
                     nWKBLenBindParameter = nWKBLen;
@@ -2124,7 +2148,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
             }
             else if (nUploadGeometryFormat == MSSQLGEOMETRY_WKT)
             {
-                char    *pszWKT = NULL;
+                char    *pszWKT = nullptr;
                 if( poGeom->exportToWkt( &pszWKT ) == OGRERR_NONE && (nGeomColumnType == MSSQLCOLTYPE_GEOMETRY
                     || nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY))
                 {
@@ -2134,7 +2158,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
 
                     int nRetCode = SQLBindParameter(oStatement.GetStatement(), (SQLUSMALLINT)(bind_num + 1),
                         SQL_PARAM_INPUT, SQL_C_CHAR, SQL_LONGVARCHAR,
-                        nLen, 0, (SQLPOINTER)pszWKT, 0, NULL);
+                        nLen, 0, (SQLPOINTER)pszWKT, 0, nullptr);
                     if ( nRetCode == SQL_SUCCESS || nRetCode == SQL_SUCCESS_WITH_INFO )
                     {
                         if (nGeomColumnType == MSSQLCOLTYPE_GEOGRAPHY)
@@ -2169,7 +2193,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
         }
 
         /* Set the FID */
-        if( nFID != OGRNullFID && pszFIDColumn != NULL )
+        if( nFID != OGRNullFID && pszFIDColumn != nullptr )
         {
             if (bNeedComma)
                 oStatement.Appendf( ", " CPL_FRMT_GIB, nFID );
@@ -2196,7 +2220,7 @@ OGRErr OGRMSSQLSpatialTableLayer::ICreateFeature( OGRFeature *poFeature )
         oStatement.Append( ");" );
     }
 
-    if( nFID != OGRNullFID && pszFIDColumn != NULL && bIsIdentityFid )
+    if( nFID != OGRNullFID && pszFIDColumn != nullptr && bIsIdentityFid )
         oStatement.Appendf("SET IDENTITY_INSERT [%s].[%s] OFF;", pszSchemaName, pszTableName );
 
 /* -------------------------------------------------------------------- */
@@ -2278,6 +2302,33 @@ void OGRMSSQLSpatialTableLayer::AppendFieldValue(CPLODBCStatement *poStatement,
         return;
     }
 
+    // Datetime values need special handling as SQL Server's datetime type
+    // accepts values only in ISO 8601 format and only without time zone
+    // information
+    else if( nOGRFieldType == OFTDateTime )
+    {
+        char *pszStrValue = OGRGetXMLDateTime( (*poFeature)[i].GetRawValue() );
+
+        int nRetCode = SQLBindParameter( poStatement->GetStatement(),
+            (SQLUSMALLINT)((*bind_num) + 1), SQL_PARAM_INPUT, SQL_C_CHAR,
+            SQL_VARCHAR, strlen(pszStrValue) + 1, 0, (SQLPOINTER)pszStrValue,
+            0, nullptr );
+        if( nRetCode == SQL_SUCCESS || nRetCode == SQL_SUCCESS_WITH_INFO )
+        {
+            bind_buffer[*bind_num] = pszStrValue;
+            ++(*bind_num);
+            poStatement->Append(
+                "CAST(CAST(? AS datetimeoffset) AS datetime)" );
+        }
+        else {
+            poStatement->Append(
+                CPLSPrintf( "CAST(CAST('%s' AS datetimeoffset) AS datetime)",
+                    pszStrValue ) );
+            CPLFree( pszStrValue );
+        }
+        return;
+    }
+
     // Flag indicating NULL or not-a-date date value
     // e.g. 0000-00-00 - there is no year 0
     OGRBoolean bIsDateNull = FALSE;
@@ -2321,8 +2372,15 @@ void OGRMSSQLSpatialTableLayer::AppendFieldValue(CPLODBCStatement *poStatement,
                           "String data truncation applied on field: %s. Use a more recent ODBC driver that supports handling large string values.", poFeatureDefn->GetFieldDefn(i)->GetNameRef() );
 #endif
             }
+#if WCHAR_MAX > 0xFFFFu
+            // Shorten each character to a two-byte value, as expected by
+            // the ODBC driver
+            GUInt16 *panBuffer = reinterpret_cast<GUInt16 *>(buffer);
+            for( unsigned int nIndex = 1; nIndex < nLen; nIndex += 1 )
+                panBuffer[nIndex] = static_cast<GUInt16>(buffer[nIndex]);
+#endif
             int nRetCode = SQLBindParameter(poStatement->GetStatement(), (SQLUSMALLINT)((*bind_num) + 1),
-                SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, nLen, 0, (SQLPOINTER)buffer, 0, NULL);
+                SQL_PARAM_INPUT, SQL_C_WCHAR, SQL_WVARCHAR, nLen, 0, (SQLPOINTER)buffer, 0, nullptr);
             if ( nRetCode == SQL_SUCCESS || nRetCode == SQL_SUCCESS_WITH_INFO )
             {
                 poStatement->Append( "?" );
