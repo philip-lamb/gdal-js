@@ -7,6 +7,8 @@ EMCONFIGURE_JS ?= 0
 GDAL_EMCC_CFLAGS := -O3
 PROJ_EMCC_CFLAGS := -O3
 EXPORTED_FUNCTIONS = "[\
+  '_malloc',\
+  '_free',\
   '_CSLCount',\
   '_GDALSetCacheMax',\
   '_GDALAllRegister',\
