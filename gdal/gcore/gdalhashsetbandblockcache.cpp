@@ -65,8 +65,10 @@ class GDALHashSetBandBlockCache final : public GDALAbstractBandBlockCache
         }
     };
 
-    std::set<GDALRasterBlock*, BlockComparator> m_oSet;
-    CPLLock        *hLock;
+    std::set<GDALRasterBlock*, BlockComparator> m_oSet{};
+    CPLLock        *hLock = nullptr;
+
+    CPL_DISALLOW_COPY_ASSIGN(GDALHashSetBandBlockCache)
 
   public:
     explicit GDALHashSetBandBlockCache( GDALRasterBand* poBand );
@@ -179,7 +181,7 @@ CPLErr GDALHashSetBandBlockCache::FlushCache()
         }
     }
 
-    WaitKeepAliveCounter();
+    WaitCompletionPendingTasks();
 
     return( eGlobalErr );
 }

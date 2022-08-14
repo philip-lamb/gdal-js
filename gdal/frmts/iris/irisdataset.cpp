@@ -461,16 +461,16 @@ void IRISDataset::LoadProjection()
         }
     }
 
-    // TODO(schwehr): Document 4294967295.
+    constexpr GUInt32 knUINT32_MAX = 0xFFFFFFFFU;
     const float fCenterLon =
-        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+112+320+12) * 360.0 / 4294967295UL);
+        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+112+320+12) * 360.0 / knUINT32_MAX);
     const float fCenterLat =
-        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+108+320+12) * 360.0 / 4294967295UL);
+        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+108+320+12) * 360.0 / knUINT32_MAX);
 
     const float fProjRefLon =
-        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+244+320+12) * 360.0 / 4294967295UL);
+        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+244+320+12) * 360.0 / knUINT32_MAX);
     const float fProjRefLat =
-        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+240+320+12) * 360.0 / 4294967295UL);
+        static_cast<float>(CPL_LSBUINT32PTR(abyHeader+240+320+12) * 360.0 / knUINT32_MAX);
 
     const float fRadarLocX = CPL_LSBSINT32PTR(abyHeader + 112 + 12 ) / 1000.0f;
     const float fRadarLocY = CPL_LSBSINT32PTR(abyHeader + 116 + 12 ) / 1000.0f;
@@ -709,11 +709,18 @@ int IRISDataset::Identify( GDALOpenInfo * poOpenInfo )
 
     const short nId1 = CPL_LSBSINT16PTR(poOpenInfo->pabyHeader);
     const short nId2 = CPL_LSBSINT16PTR(poOpenInfo->pabyHeader + 12);
-    unsigned short nType = CPL_LSBUINT16PTR(poOpenInfo->pabyHeader + 24);
+    unsigned short nProductCode = CPL_LSBUINT16PTR(poOpenInfo->pabyHeader + 12 + 12);
+    const short nYear = CPL_LSBSINT16PTR(poOpenInfo->pabyHeader+26+12);
+    const short nMonth = CPL_LSBSINT16PTR(poOpenInfo->pabyHeader+28+12);
+    const short nDay = CPL_LSBSINT16PTR(poOpenInfo->pabyHeader+30+12);
 
     // Check if the two headers are 27 (product hdr) & 26 (product
-    // configuration), and the product type is in the range 1 -> 34.
-    if( !(nId1 == 27 && nId2 == 26 && nType > 0 && nType < 35) )
+    // configuration), and other metadata
+    if( !(nId1 == 27 && nId2 == 26 &&
+          nProductCode > 0 && nProductCode < CPL_ARRAYSIZE(aszProductNames) &&
+          nYear >= 1900 && nYear < 2100 &&
+          nMonth >= 1 && nMonth <= 12 &&
+          nDay >= 1 && nDay <= 31) )
         return FALSE;
 
     return TRUE;

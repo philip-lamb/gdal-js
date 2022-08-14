@@ -177,6 +177,11 @@ void OGRDXFLayer::TranslateGenericProperty( OGRDXFFeature *poFeature,
         poFeature->oStyleProperties["Hidden"] = pszValue;
         break;
 
+      case 67:
+        if( atoi(pszValue) )
+            poFeature->SetField( "PaperSpace", 1 );
+        break;
+
       case 62:
         poFeature->oStyleProperties["Color"] = pszValue;
         break;
@@ -209,10 +214,6 @@ void OGRDXFLayer::TranslateGenericProperty( OGRDXFFeature *poFeature,
 
       case 230:
         poFeature->oOCS.dfZ = CPLAtof( pszValue );
-        break;
-
-      case 330:
-        // No-one cares about this, so exclude from RawCodeValues
         break;
 
       default:
@@ -728,13 +729,11 @@ OGRDXFFeature *OGRDXFLayer::TranslateTEXT( const bool bIsAttribOrAttdef )
           case 2:
             if( bIsAttribOrAttdef )
             {
-                if( strchr( szLineBuf, ' ' ) )
-                {
-                    CPLDebug( "DXF", "Attribute tags may not contain spaces" );
-                    DXF_LAYER_READER_ERROR();
-                    delete poFeature;
-                    return nullptr;
-                }
+                // Attribute tags are not supposed to contain spaces (but
+                // sometimes they do)
+                while( char* pchSpace = strchr( szLineBuf, ' ' ) )
+                    *pchSpace = '_';
+
                 poFeature->osAttributeTag = szLineBuf;
             }
             break;
@@ -2097,8 +2096,16 @@ OGRDXFFeature *OGRDXFLayer::TranslateSPLINE()
             break;
 
           case 40:
-            adfKnots.push_back( CPLAtof(szLineBuf) );
+          {
+            double dfVal = CPLAtof(szLineBuf);
+            // Ad-hoc fix for https://github.com/OSGeo/gdal/issues/1969
+            // where the first knot is at a very very close to zero negative
+            // value and following knots are at 0.
+            if( dfVal < 0 && dfVal > -1.0e-10 )
+                dfVal = 0;
+            adfKnots.push_back(dfVal);
             break;
+          }
 
           case 41:
             adfWeights.push_back( CPLAtof(szLineBuf) );

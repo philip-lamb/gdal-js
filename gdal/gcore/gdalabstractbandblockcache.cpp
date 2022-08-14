@@ -51,12 +51,10 @@ static int nAllBandsKeptAlivedBlocks = 0;
 GDALAbstractBandBlockCache::GDALAbstractBandBlockCache(
     GDALRasterBand* poBandIn ) :
     hSpinLock(CPLCreateLock(LOCK_SPIN)),
-    psListBlocksToFree(nullptr),
     hCond(CPLCreateCond()),
     hCondMutex(CPLCreateMutex()),
-    nKeepAliveCounter(0)
+    poBand(poBandIn)
 {
-    poBand = poBandIn;
     if( hCondMutex )
         CPLReleaseMutex(hCondMutex);
 }
@@ -115,7 +113,7 @@ void GDALAbstractBandBlockCache::AddBlockToFreeList( GDALRasterBlock *poBlock )
         psListBlocksToFree = poBlock;
     }
 
-    // If no more blocks in transient state, then warn WaitKeepAliveCounter()
+    // If no more blocks in transient state, then warn WaitCompletionPendingTasks()
     CPLAcquireMutex(hCondMutex, 1000);
     if( CPLAtomicDec(&nKeepAliveCounter) == 0 )
     {
@@ -125,13 +123,13 @@ void GDALAbstractBandBlockCache::AddBlockToFreeList( GDALRasterBlock *poBlock )
 }
 
 /************************************************************************/
-/*                         WaitKeepAliveCounter()                       */
+/*                      WaitCompletionPendingTasks()                    */
 /************************************************************************/
 
-void GDALAbstractBandBlockCache::WaitKeepAliveCounter()
+void GDALAbstractBandBlockCache::WaitCompletionPendingTasks()
 {
 #ifdef DEBUG_VERBOSE
-    CPLDebug("GDAL", "WaitKeepAliveCounter()");
+    CPLDebug("GDAL", "WaitCompletionPendingTasks()");
 #endif
 
     CPLAcquireMutex(hCondMutex, 1000);

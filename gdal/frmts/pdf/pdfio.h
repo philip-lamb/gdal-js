@@ -38,36 +38,29 @@
 
 #define BUFFER_SIZE 1024
 
-#ifdef POPPLER_0_23_OR_LATER
 #define getPos_ret_type Goffset
 #define getStart_ret_type Goffset
 #define makeSubStream_offset_type Goffset
 #define setPos_offset_type Goffset
 #define moveStart_delta_type Goffset
-#else
-#define getPos_ret_type int
-#define getStart_ret_type Guint
-#define makeSubStream_offset_type Guint
-#define setPos_offset_type Guint
-#define moveStart_delta_type int
-#endif
 
-#ifdef POPPLER_0_58_OR_LATER
+#if POPPLER_MAJOR_VERSION >= 1 || POPPLER_MINOR_VERSION >= 58
 #define makeSubStream_object_type Object&&
 #else
 #define makeSubStream_object_type Object*
 #endif
 
 // Detect Poppler 0.71 that no longer defines GBool
-#ifdef POPPLER_0_69_OR_LATER
+#if POPPLER_MAJOR_VERSION >= 1 || POPPLER_MINOR_VERSION >= 69
 #ifndef initObj
-#define POPPLER_0_71_OR_LATER
+#if POPPLER_MAJOR_VERSION >= 1 || POPPLER_MINOR_VERSION >= 71
 #define GBool bool
 #define gFalse false
 #endif
 #endif
+#endif
 
-class VSIPDFFileStream: public BaseStream
+class VSIPDFFileStream final: public BaseStream
 {
     public:
         VSIPDFFileStream(VSILFILE* f, const char* pszFilename,
@@ -78,9 +71,7 @@ class VSIPDFFileStream: public BaseStream
                          makeSubStream_object_type dictA);
         virtual ~VSIPDFFileStream();
 
-#ifdef POPPLER_0_23_OR_LATER
         virtual BaseStream* copy() override;
-#endif
 
         virtual Stream *   makeSubStream(makeSubStream_offset_type startA, GBool limitedA,
                                          makeSubStream_offset_type lengthA, makeSubStream_object_type dictA) override;
@@ -90,7 +81,12 @@ class VSIPDFFileStream: public BaseStream
         virtual void       setPos(setPos_offset_type pos, int dir = 0) override;
         virtual void       moveStart(moveStart_delta_type delta) override;
 
-        virtual StreamKind getKind() override;
+        virtual StreamKind getKind()
+#if POPPLER_MAJOR_VERSION >= 1 || POPPLER_MINOR_VERSION >= 83
+            const
+#endif
+            override;
+
         virtual GooString *getFileName() override;
 
         virtual int        getChar() override;
@@ -101,19 +97,11 @@ class VSIPDFFileStream: public BaseStream
         virtual void       unfilteredReset () override;
         virtual void       close() override;
 
+        bool               FoundLinearizedHint() const { return bFoundLinearizedHint; }
+
     private:
-#ifdef POPPLER_BASE_STREAM_HAS_TWO_ARGS
-        /* getChars/hasGetChars added in poppler 0.15.0
-         * POPPLER_BASE_STREAM_HAS_TWO_ARGS true from poppler 0.16,
-         * This test will be wrong for poppler 0.15 or 0.16,
-         * but will still compile correctly.
-         */
         virtual GBool hasGetChars() override;
         virtual int getChars(int nChars, Guchar *buffer) override;
-#else
-        virtual GBool hasGetChars() ;
-        virtual int getChars(int nChars, Guchar *buffer) ;
-#endif
 
         VSIPDFFileStream  *poParent;
         GooString         *poFilename;
@@ -129,6 +117,8 @@ class VSIPDFFileStream: public BaseStream
         GByte              abyBuffer[BUFFER_SIZE];
         int                nPosInBuffer;
         int                nBufferLength;
+
+        bool               bFoundLinearizedHint = false;
 
         int                FillBuffer();
 };

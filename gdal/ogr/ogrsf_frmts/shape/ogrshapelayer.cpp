@@ -75,6 +75,7 @@ OGRShapeLayer::OGRShapeLayer( OGRShapeDataSource* poDSIn,
                               char ** papszCreateOptions ) :
     OGRAbstractProxiedLayer(poDSIn->GetPool()),
     poDS(poDSIn),
+    poFeatureDefn(nullptr),
     iNextShapeId(0),
     nTotalShapeCount(0),
     pszFullName(CPLStrdup(pszFullNameIn)),
@@ -444,6 +445,8 @@ CPLString OGRShapeLayer::ConvertCodePage( const char *pszCodePage )
     }
     if( STARTS_WITH_CI(pszCodePage, "UTF-8") )
         return CPL_ENC_UTF8;
+    if( STARTS_WITH_CI(pszCodePage, "ANSI 1251") )
+        return "CP1251";
 
     // Try just using the CPG value directly.  Works for stuff like Big5.
     return pszCodePage;
@@ -2216,7 +2219,7 @@ int OGRShapeLayer::ResetGeomType( int nNewGeomType )
         || hSHP->sHooks.FRead( abyHeader, 100, 1, hSHP->fpSHP ) != 1 )
         return FALSE;
 
-    *((GInt32 *) (abyHeader + 32)) = CPL_LSBWORD32( nNewGeomType );
+    *(reinterpret_cast<GInt32 *>(abyHeader + 32)) = CPL_LSBWORD32( nNewGeomType );
 
     if( hSHP->sHooks.FSeek( hSHP->fpSHP, 0, SEEK_SET ) != 0
         || hSHP->sHooks.FWrite( abyHeader, 100, 1, hSHP->fpSHP ) != 1 )
@@ -2234,7 +2237,7 @@ int OGRShapeLayer::ResetGeomType( int nNewGeomType )
         || hSHP->sHooks.FRead( abyHeader, 100, 1, hSHP->fpSHX ) != 1 )
         return FALSE;
 
-    *((GInt32 *) (abyHeader + 32)) = CPL_LSBWORD32( nNewGeomType );
+    *(reinterpret_cast<GInt32 *>(abyHeader + 32)) = CPL_LSBWORD32( nNewGeomType );
 
     if( hSHP->sHooks.FSeek( hSHP->fpSHX, 0, SEEK_SET ) != 0
         || hSHP->sHooks.FWrite( abyHeader, 100, 1, hSHP->fpSHX ) != 1 )
@@ -2422,43 +2425,7 @@ OGRErr OGRShapeLayer::CreateSpatialIndex( int nMaxDepth )
 
 static bool CopyInPlace( VSILFILE* fpTarget, const CPLString& osSourceFilename )
 {
-    VSILFILE* fpSource = VSIFOpenL(osSourceFilename, "rb");
-    if( fpSource == nullptr )
-    {
-        CPLError(CE_Failure, CPLE_FileIO,
-                 "Cannot open %s", osSourceFilename.c_str());
-        return false;
-    }
-
-    const size_t nBufferSize = 4096;
-    void* pBuffer = CPLMalloc(nBufferSize);
-    VSIFSeekL( fpTarget, 0, SEEK_SET );
-    bool bRet = true;
-    while( true )
-    {
-        size_t nRead = VSIFReadL( pBuffer, 1, nBufferSize, fpSource );
-        size_t nWritten = VSIFWriteL( pBuffer, 1, nRead, fpTarget );
-        if( nWritten != nRead )
-        {
-            bRet = false;
-            break;
-        }
-        if( nRead < nBufferSize )
-            break;
-    }
-
-    if( bRet )
-    {
-        bRet = VSIFTruncateL( fpTarget, VSIFTellL(fpTarget) ) == 0;
-        if( !bRet )
-        {
-            CPLError(CE_Failure, CPLE_FileIO, "Truncation failed");
-        }
-    }
-
-    CPLFree(pBuffer);
-    VSIFCloseL(fpSource);
-    return bRet;
+    return CPL_TO_BOOL(VSIOverwriteFile(fpTarget, osSourceFilename.c_str()));
 }
 
 /************************************************************************/
@@ -3461,7 +3428,7 @@ void OGRShapeLayer::AddToFileList( CPLStringList& oFileList )
         if( GetSpatialRef() != nullptr )
         {
             OGRShapeGeomFieldDefn* poGeomFieldDefn =
-                (OGRShapeGeomFieldDefn*)GetLayerDefn()->GetGeomFieldDefn(0);
+                cpl::down_cast<OGRShapeGeomFieldDefn*>(GetLayerDefn()->GetGeomFieldDefn(0));
             oFileList.AddString(poGeomFieldDefn->GetPrjFilename());
         }
         if( CheckForQIX() )

@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #ifdef __cplusplus
-#include "datasource.h"
+#include "cpl_vsi.h"
 #endif
 
 #ifndef GRIB2BIT_ENUM
@@ -268,15 +268,23 @@ typedef struct {  /* See Template 4.30. */
                                 band. */
 } sect4_BandType;
 
-enum { GS4_ANALYSIS, GS4_ENSEMBLE, GS4_DERIVED, GS4_PROBABIL_PNT = 5,
+enum { GS4_ANALYSIS = 0,
+       GS4_ENSEMBLE = 1,
+       GS4_DERIVED = 2,
+       GS4_DERIVED_CLUSTER_RECTANGULAR_AREA = 3,
+       GS4_DERIVED_CLUSTER_CIRCULAR_AREA = 4,
+       GS4_PROBABIL_PNT = 5,
        GS4_PERCENT_PNT = 6, GS4_ERROR = 7, GS4_STATISTIC = 8,
        GS4_PROBABIL_TIME = 9, GS4_PERCENT_TIME = 10, GS4_ENSEMBLE_STAT = 11,
        GS4_DERIVED_INTERVAL = 12,
+       GS4_DERIVED_INTERVAL_CLUSTER_RECTANGULAR_AREA = 13,
+       GS4_DERIVED_INTERVAL_CLUSTER_CIRCULAR_AREA = 14,
        GS4_STATISTIC_SPATIAL_AREA = 15, // TODO; partially supported. Should fetch specific fields in metaparse.cpp
        GS4_RADAR = 20,
        GS4_SATELLITE = 30,
        GS4_SATELLITE_SYNTHETIC = 32,
-       GS4_ANALYSIS_CHEMICAL = 40
+       GS4_ANALYSIS_CHEMICAL = 40,
+       GS4_OPTICAL_PROPERTIES_AEROSOL = 48
 };
 
 typedef struct {
@@ -605,7 +613,7 @@ int MetaParse (grib_MetaData * meta, sInt4 *is0, sInt4 ns0,
 
 #ifdef __cplusplus
 
-void ParseGrid (DataSource &fp, gridAttribType * attrib, double **Grib_Data,
+void ParseGrid (VSILFILE *fp, gridAttribType * attrib, double **Grib_Data,
                 uInt4 *grib_DataLen, uInt4 Nx, uInt4 Ny, int scan,
                 sInt4 nd2x3, sInt4 *iain, sInt4 ibitmap, sInt4 *ib, double unitM,
                 double unitB, uChar f_txtType, uInt4 txt_dataLen,

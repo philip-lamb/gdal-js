@@ -198,6 +198,18 @@ int NASAKeywordHandler::ReadGroup( const char *pszPathPrefix, CPLJSONObject &oCu
 }
 
 /************************************************************************/
+/*                        StripQuotesIfNeeded()                         */
+/************************************************************************/
+
+static CPLString StripQuotesIfNeeded(const CPLString& osWord,
+                                     bool bQuotesAlreadyRemoved)
+{
+    if( bQuotesAlreadyRemoved || osWord.size() < 2 || osWord[0] != '"' )
+        return osWord;
+    return osWord.substr(1, osWord.size() - 2);
+}
+
+/************************************************************************/
 /*                              ReadPair()                              */
 /*                                                                      */
 /*      Read a name/value pair from the input stream.  Strip off        */
@@ -244,6 +256,9 @@ int NASAKeywordHandler::ReadPair( CPLString &osName, CPLString &osValue,
         std::vector<char> oStackArrayBeginChar;
         CPLString osWord;
 
+        oStackArrayBeginChar.push_back(*pszHeaderNext);
+        osValue += *pszHeaderNext;
+        pszHeaderNext++;
 
         while( ReadWord( osWord, m_bStripSurroundingQuotes,
                          true, &bIsString ) )
@@ -263,7 +278,7 @@ int NASAKeywordHandler::ReadPair( CPLString &osName, CPLString &osValue,
                       *pszHeaderNext == '{' || *pszHeaderNext == ')' ||
                       *pszHeaderNext == '}')) )
                 {
-                    oArray.Add(osWord);
+                    oArray.Add(StripQuotesIfNeeded(osWord, m_bStripSurroundingQuotes));
                 }
             }
             else  if( CPLGetValueType(osWord) == CPL_VALUE_INTEGER )
@@ -276,6 +291,10 @@ int NASAKeywordHandler::ReadPair( CPLString &osName, CPLString &osValue,
             }
 
             osValue += osWord;
+            while ( isspace( static_cast<unsigned char>( *pszHeaderNext ) ) )
+            {
+                pszHeaderNext++;
+            }
 
             if( *pszHeaderNext == ')' )
             {
@@ -309,6 +328,15 @@ int NASAKeywordHandler::ReadPair( CPLString &osName, CPLString &osValue,
             {
                 osValue += *pszHeaderNext;
                 pszHeaderNext ++;
+                // Do not use SkipWhite() here to avoid being confuse by
+                // constructs like
+                // FOO = (#123456,
+                //        #123456)
+                // where we could confuse the second line with a comment.
+                while ( isspace( static_cast<unsigned char>( *pszHeaderNext ) ) )
+                {
+                    pszHeaderNext++;
+                }
             }
             SkipWhite();
 
@@ -336,7 +364,7 @@ int NASAKeywordHandler::ReadPair( CPLString &osName, CPLString &osValue,
             {
                 if( bIsString )
                 {
-                    oCur.Add( osName, osValue );
+                    oCur.Add( osName, StripQuotesIfNeeded(osValue, m_bStripSurroundingQuotes) );
                 }
                 else if( CPLGetValueType(osValue) == CPL_VALUE_INTEGER )
                 {

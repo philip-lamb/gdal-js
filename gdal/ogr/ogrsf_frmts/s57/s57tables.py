@@ -29,7 +29,6 @@
 # ******************************************************************************
 
 import os
-import string
 import sys
 
 # -----------------------------------------------------------------------------
@@ -37,16 +36,8 @@ import sys
 # -----------------------------------------------------------------------------
 
 
-def EscapeLine(line):
-
-    line_out = ''
-    for lchar in line:
-        if lchar == '"':
-            line_out += '\\"'
-        else:
-            line_out += lchar
-
-    return line_out
+def EscapeLine(ln):
+    return ln.replace('"', '\\"')
 
 # -----------------------------------------------------------------------------
 #
@@ -66,7 +57,7 @@ print('char *gpapszS57Classes[] = {')
 classes = open(directory + '/s57objectclasses.csv').readlines()
 
 for line in classes:
-    print('"%s",' % EscapeLine(string.strip(line)))
+    print('"%s",' % EscapeLine(line.strip()))
 
 print('NULL };')
 
@@ -74,6 +65,6 @@ print('char *gpapszS57attributes[] = {')
 classes = open(directory + '/s57attributes.csv').readlines()
 
 for line in classes:
-    print('"%s",' % EscapeLine(string.strip(line)))
+    print('"%s",' % EscapeLine(line.strip()))
 
 print('NULL };')

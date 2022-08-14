@@ -788,7 +788,7 @@ float* GRIB2Section567Writer::GetFloatData()
         m_fMin = m_fMax = static_cast<float>(m_dfNoData);
     }
 
-    // We chech that the actual range of values got from the above RasterIO
+    // We check that the actual range of values got from the above RasterIO
     // request does not go over the expected range of the datatype, as we
     // later assume that for computing nMaxBitsPerElt. 
     // This shouldn't happen for well-behaved drivers, but this can still
@@ -2108,37 +2108,27 @@ static float ComputeValOffset(int nTokens, char** papszTokens,
     float fValOffset = 0.0f;
 
     // Parameter category 0 = Temperature
-    bool bIsTemperature = false;
     if( nTokens >= 2 && atoi(papszTokens[0]) == 0 )
     {
-        // Cf http://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_table4-2-0-0.shtml
+        // Cf https://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc/grib2_table4-2-0-0.shtml
         // PARAMETERS FOR DISCIPLINE 0 CATEGORY 0
         int nParamNumber = atoi(papszTokens[1]);
-        if( nParamNumber >= 0 && nParamNumber <= 18 &&
+        if( (nParamNumber >= 0 && nParamNumber <= 18 &&
             nParamNumber != 8 && nParamNumber != 10 && nParamNumber != 11 &&
-            nParamNumber != 16 )
+            nParamNumber != 16) ||
+            nParamNumber == 21 ||
+            nParamNumber == 27 )
         {
-            bIsTemperature = true;
-            if( pszInputUnit == nullptr || EQUAL(pszInputUnit, "C") )
+            if( pszInputUnit == nullptr || EQUAL(pszInputUnit, "C") ||
+                EQUAL(pszInputUnit, "[C]") )
             {
                 fValOffset = 273.15f;
                 CPLDebug("GRIB",
                          "Applying a %f offset to convert from "
-                         "Celcius to Kelvin",
+                         "Celsius to Kelvin",
                          fValOffset);
             }
-            else if( !EQUAL(pszInputUnit, "K") )
-            {
-                CPLError(CE_Warning, CPLE_NotSupported,
-                            "Unsupported INPUT_UNIT = %s", pszInputUnit);
-            }
         }
-    }
-
-    if( !bIsTemperature && pszInputUnit != nullptr )
-    {
-        CPLError(CE_Warning, CPLE_AppDefined,
-                 "INPUT_UNIT ignored for that product template");
     }
 
     return fValOffset;
@@ -2173,14 +2163,18 @@ static bool WriteSection4( VSILFILE* fp,
         pszPDSTemplateNumbers = GetBandOption(
             papszOptions, poSrcDS, nBand, "PDS_TEMPLATE_NUMBERS", nullptr);
     }
+    CPLString osInputUnit;
     const char* pszInputUnit = GetBandOption(
             papszOptions, nullptr, nBand, "INPUT_UNIT", nullptr);
     if( pszInputUnit == nullptr )
     {
         const char* pszGribUnit =
             poSrcDS->GetRasterBand(nBand)->GetMetadataItem("GRIB_UNIT");
-        if( pszGribUnit != nullptr && EQUAL(pszGribUnit, "[K]") )
-            pszInputUnit = "K";
+        if( pszGribUnit != nullptr )
+        {
+            osInputUnit = pszGribUnit;
+            pszInputUnit = osInputUnit.c_str();
+        }
     }
     WriteUInt16(fp, nPDTN); // PDTN
     if( nPDTN == 0 && pszPDSTemplateNumbers == nullptr &&

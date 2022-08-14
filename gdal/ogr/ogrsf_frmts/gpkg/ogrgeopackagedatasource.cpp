@@ -669,11 +669,11 @@ void GDALGeoPackageDataset::RemoveTableFromSQLiteMasterCache(
 }
 
 /************************************************************************/
-/*                          GetExtensions()                             */
+/*                  GetUnknownExtensionsTableSpecific()                 */
 /************************************************************************/
 
 const std::map< CPLString, std::vector<GPKGExtensionDesc> > &
-                        GDALGeoPackageDataset::GetExtensions()
+                    GDALGeoPackageDataset::GetUnknownExtensionsTableSpecific()
 {
     if( m_bMapTableToExtensionsBuilt )
         return m_oMapTableToExtensions;
@@ -693,7 +693,7 @@ const std::map< CPLString, std::vector<GPKGExtensionDesc> > &
             "'gpkg_geom_MULTISURFACE', 'gpkg_geom_CURVE', 'gpkg_geom_SURFACE', "
             "'gpkg_geom_POLYHEDRALSURFACE', 'gpkg_geom_TIN', 'gpkg_geom_TRIANGLE', "
             "'gpkg_rtree_index', 'gpkg_geometry_type_trigger', 'gpkg_srs_id_trigger', "
-            "'gpkg_crs_wkt')");
+            "'gpkg_crs_wkt', 'gpkg_schema')");
     const int nTableLimit =
                 atoi(CPLGetConfigOption("OGR_TABLE_LIMIT", "10000"));
     if( nTableLimit > 0 )
@@ -979,13 +979,13 @@ int GDALGeoPackageDataset::Open( GDALOpenInfo* poOpenInfo )
     /* Requirement 7: The SQLite PRAGMA foreign_key_check() SQL with no */
     /* parameter value SHALL return an empty result set */
     /* http://opengis.github.io/geopackage/#_file_integrity */
-    if ( CPLTestBool(CPLGetConfigOption("OGR_GPKG_FOREIGN_KEY_CHECK", "YES")) &&
+    /* Disable the check by default, since it is to corrupt databases, and */
+    /* that causes issues to downstream software that can't open them. */
+    if ( CPLTestBool(CPLGetConfigOption("OGR_GPKG_FOREIGN_KEY_CHECK", "NO")) &&
          OGRERR_NONE != PragmaCheck("foreign_key_check", "", 0) )
     {
         CPLError( CE_Failure, CPLE_AppDefined,
-                  "pragma foreign_key_check on '%s' failed. You can disable "
-                  "this check by setting the OGR_GPKG_FOREIGN_KEY_CHECK "
-                  "configuration option to NO",
+                  "pragma foreign_key_check on '%s' failed.",
                   m_pszFilename);
         return FALSE;
     }
@@ -1694,14 +1694,12 @@ bool GDALGeoPackageDataset::OpenRaster( const char* pszTableName,
 
     m_bRecordInsertedInGPKGContent = true;
     m_nSRID = nSRSId;
-    if( nSRSId > 0 )
+
+    OGRSpatialReference* poSRS = GetSpatialRef( nSRSId );
+    if( poSRS )
     {
-        OGRSpatialReference* poSRS = GetSpatialRef( nSRSId );
-        if( poSRS )
-        {
-            poSRS->exportToWkt(&m_pszProjection);
-            poSRS->Release();
-        }
+        poSRS->exportToWkt(&m_pszProjection);
+        poSRS->Release();
     }
 
     /* Various sanity checks added in the SELECT */
@@ -2746,6 +2744,30 @@ bool GDALGeoPackageDataset::HasMetadataTables()
 }
 
 /************************************************************************/
+/*                         HasDataColumnsTable()                        */
+/************************************************************************/
+
+bool GDALGeoPackageDataset::HasDataColumnsTable()
+{
+    const int nCount = SQLGetInteger(hDB,
+                "SELECT 1 FROM sqlite_master WHERE name = 'gpkg_data_columns'"
+                "AND type IN ('table', 'view')", nullptr);
+    return nCount == 1;
+}
+
+/************************************************************************/
+/*                    HasDataColumnConstraintsTable()                   */
+/************************************************************************/
+
+bool GDALGeoPackageDataset::HasDataColumnConstraintsTable()
+{
+    const int nCount = SQLGetInteger(hDB,
+    "SELECT 1 FROM sqlite_master WHERE name = 'gpkg_data_column_constraints'"
+    "AND type IN ('table', 'view')", nullptr);
+    return nCount == 1;
+}
+
+/************************************************************************/
 /*                            GetMetadata()                             */
 /************************************************************************/
 
@@ -3785,8 +3807,8 @@ int GDALGeoPackageDataset::Create( const char * pszFilename,
 
         if( m_bHasDefinition12_063 )
         {
-            CreateExtensionsTableIfNecessary();
-            if( OGRERR_NONE != SQLCommand(hDB,
+            if( OGRERR_NONE != CreateExtensionsTableIfNecessary() ||
+                OGRERR_NONE != SQLCommand(hDB,
                 "INSERT INTO gpkg_extensions "
                 "(table_name, column_name, extension_name, definition, scope) "
                 "VALUES "
@@ -5774,21 +5796,6 @@ OGRErr GDALGeoPackageDataset::CreateExtensionsTableIfNecessary()
         ")";
 
     return SQLCommand(hDB, pszCreateGpkgExtensions);
-}
-
-/************************************************************************/
-/*                         HasDataColumnsTable()                        */
-/************************************************************************/
-
-bool GDALGeoPackageDataset::HasDataColumnsTable()
-{
-    SQLResult oResultTable;
-    OGRErr err = SQLQuery(hDB,
-        "SELECT * FROM sqlite_master WHERE name = 'gpkg_data_columns' "
-        "AND type IN ('table', 'view')", &oResultTable);
-    bool bHasExtensionsTable = ( err == OGRERR_NONE && oResultTable.nRowCount == 1 );
-    SQLResultFree(&oResultTable);
-    return bHasExtensionsTable;
 }
 
 /************************************************************************/

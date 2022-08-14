@@ -634,15 +634,10 @@ PixarLogGuessDataFmt(TIFFDirectory *td)
 	return guess;
 }
 
-#define TIFF_SIZE_T_MAX ((size_t) ~ ((size_t)0))
-#define TIFF_TMSIZE_T_MAX (tmsize_t)(TIFF_SIZE_T_MAX >> 1)
-
 static tmsize_t
 multiply_ms(tmsize_t m1, tmsize_t m2)
 {
-        if( m1 == 0 || m2 > TIFF_TMSIZE_T_MAX / m1 )
-            return 0;
-        return m1 * m2;
+        return _TIFFMultiplySSize(NULL, m1, m2, NULL);
 }
 
 static tmsize_t
@@ -817,8 +812,8 @@ PixarLogDecode(TIFF* tif, uint8* op, tmsize_t occ, uint16 s)
 			TIFFErrorExt(tif->tif_clientdata, module,
 			    "Decoding error at scanline %lu, %s",
 			    (unsigned long) tif->tif_row, sp->stream.msg ? sp->stream.msg : "(null)");
-			if (inflateSync(&sp->stream) != Z_OK)
-				return (0);
+			/* if (inflateSync(&sp->stream) != Z_OK) */
+			return (0);
 			continue;
 		}
 		if (state != Z_OK) {

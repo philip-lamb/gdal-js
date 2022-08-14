@@ -21,6 +21,10 @@ ifeq ($(GNM_ENABLED),yes)
    GDAL_OBJ += $(GDAL_ROOT)/gnm/*.o $(GDAL_ROOT)/gnm/gnm_frmts/o/*.o
 endif
 
+ifeq ($(HAVE_LERC),yes)
+   GDAL_OBJ += $(GDAL_ROOT)/third_party/o/*.o
+endif
+
 include ./ogr/file.lst
 GDAL_OBJ += $(addprefix ./ogr/,$(OBJ))
 
@@ -67,7 +71,7 @@ ifeq ($(MACOSX_FRAMEWORK),yes)
 	install_name_tool -id ${OSX_VERSION_FRAMEWORK_PREFIX}/GDAL .libs/libgdal.dylib
 endif
 
-lib-dependencies:	port-target core-target frmts-target ogr-target gnm-target appslib-target
+lib-dependencies:	port-target core-target frmts-target third-party-target ogr-target gnm-target appslib-target
 
 check-lib:	lib-dependencies
 	$(MAKE) $(LIBGDAL-yes)
@@ -98,6 +102,9 @@ core-target: generate_gdal_version_h
 frmts-target: generate_gdal_version_h
 	(cd frmts; $(MAKE))
 
+third-party-target: generate_gdal_version_h
+	(cd third_party; $(MAKE))
+
 ogr-all: generate_gdal_version_h
 	(cd ogr; $(MAKE) all)
 
@@ -120,6 +127,7 @@ clean:	lclean
 	(cd gnm; $(MAKE) clean)
 	(cd gcore; $(MAKE) clean)
 	(cd frmts; $(MAKE) clean)
+	(cd third_party; $(MAKE) clean)
 	(cd alg; $(MAKE) clean)
 	(cd apps; $(MAKE) clean)
 ifneq ($(BINDINGS),)
@@ -170,7 +178,7 @@ docs:
 	cp data/gdalicon.png html
 	cp doc/images/*.* html
 	cp doc/grid/*.png html
-	cp frmts/*.html frmts/*/frmt_*.html html
+	cp frmts/*.html frmts/*/frmt_*.html frmts/*/drv_*.html html
 	cp frmts/openjpeg/*.xml html
 	cp frmts/wms/frmt_*.xml html
 	cp ogr/ogrsf_frmts/*/frmt_*.html html

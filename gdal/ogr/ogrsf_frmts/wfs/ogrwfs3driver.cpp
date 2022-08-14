@@ -45,24 +45,26 @@ extern "C" void RegisterOGRWFS3();
 /************************************************************************/
 class OGRWFS3Layer;
 
-class OGRWFS3Dataset : public GDALDataset
+class OGRWFS3Dataset final: public GDALDataset
 {
         friend class OGRWFS3Layer;
 
         CPLString                              m_osRootURL;
+        CPLString                              m_osUserQueryParams;
+        CPLString                              m_osUserPwd;
         int                                    m_nPageSize = 10;
         std::vector<std::unique_ptr<OGRLayer>> m_apoLayers;
         bool                                   m_bAPIDocLoaded = false;
         CPLJSONDocument                        m_oAPIDoc;
 
-        static bool                    Download(
+        bool                    Download(
             const CPLString& osURL,
             const char* pszAccept,
             CPLString& osResult,
             CPLString& osContentType,
             CPLStringList* paosHeaders = nullptr );
 
-        static bool                    DownloadJSon(
+        bool                    DownloadJSon(
             const CPLString& osURL,
             CPLJSONDocument& oDoc,
             const char* pszAccept = "application/geo+json, application/json",
@@ -84,7 +86,7 @@ class OGRWFS3Dataset : public GDALDataset
 /*                            OGRWFS3Layer                              */
 /************************************************************************/
 
-class OGRWFS3Layer: public OGRLayer
+class OGRWFS3Layer final: public OGRLayer
 {
         OGRWFS3Dataset* m_poDS = nullptr;
         OGRFeatureDefn* m_poFeatureDefn = nullptr;
@@ -170,7 +172,25 @@ bool OGRWFS3Dataset::Download(
 #endif
     char** papszOptions = CSLSetNameValue(nullptr,
             "HEADERS", (CPLString("Accept: ") + pszAccept).c_str());
-    CPLHTTPResult* psResult = CPLHTTPFetch(osURL, papszOptions);
+    if( !m_osUserPwd.empty() )
+    {
+        papszOptions = CSLSetNameValue(papszOptions,
+                                       "USERPWD", m_osUserPwd.c_str());
+    }
+    CPLString osURLWithQueryParameters(osURL);
+    if( !m_osUserQueryParams.empty() )
+    {
+        if( osURL.find('?') == std::string::npos )
+        {
+            osURLWithQueryParameters += '?';
+        }
+        else
+        {
+            osURLWithQueryParameters += '&';
+        }
+        osURLWithQueryParameters += m_osUserQueryParams;
+    }
+    CPLHTTPResult* psResult = CPLHTTPFetch(osURLWithQueryParameters, papszOptions);
     CSLDestroy(papszOptions);
     if( !psResult )
         return false;
@@ -304,11 +324,19 @@ const CPLJSONDocument& OGRWFS3Dataset::GetAPIDoc()
 
 bool OGRWFS3Dataset::Open(GDALOpenInfo* poOpenInfo)
 {
-    m_osRootURL = 
+    m_osRootURL =
         CSLFetchNameValueDef(poOpenInfo->papszOpenOptions, "URL",
             poOpenInfo->pszFilename + strlen("WFS3:"));
+    auto nPosQuotationMark = m_osRootURL.find('?');
+    if( nPosQuotationMark != std::string::npos )
+    {
+        m_osUserQueryParams = m_osRootURL.substr(nPosQuotationMark + 1);
+        m_osRootURL.resize(nPosQuotationMark);
+    }
     m_nPageSize = atoi( CSLFetchNameValueDef(poOpenInfo->papszOpenOptions,
                             "PAGE_SIZE",CPLSPrintf("%d", m_nPageSize)) );
+    m_osUserPwd =
+        CSLFetchNameValueDef(poOpenInfo->papszOpenOptions, "USERPWD", "");
     CPLString osResult;
     CPLString osContentType;
     // FIXME: json would be preferable in first position, but
@@ -343,6 +371,11 @@ bool OGRWFS3Dataset::Open(GDALOpenInfo* poOpenInfo)
             if( osName.empty() )
                 osName = oCollection.GetString("collectionId");
 #endif
+            // "name" will be soon be replaced by "id"
+            // https://github.com/opengeospatial/WFS_FES/issues/171
+            if( osName.empty() )
+                osName = oCollection.GetString("id");
+
             if( osName.empty() )
                 continue;
             CPLString osTitle( oCollection.GetString("title") );
@@ -484,7 +517,7 @@ OGRWFS3Layer::OGRWFS3Layer(OGRWFS3Dataset* poDS,
     m_osURL = m_poDS->m_osRootURL + "/collections/" + osName + "/items"; // FIXME
     m_osPath = "/collections/" + osName + "/items"; // FIXME
 
-    ResetReading();
+    OGRWFS3Layer::ResetReading();
 }
 
 /************************************************************************/
@@ -634,7 +667,7 @@ OGRFeature* OGRWFS3Layer::GetNextRawFeature()
     OGRFeature* poSrcFeature = nullptr;
     while( true )
     {
-        if( m_poUnderlyingDS.get() == nullptr )
+        if( m_poUnderlyingLayer == nullptr )
         {
             if( m_osGetURL.empty() )
                 return nullptr;
@@ -678,6 +711,8 @@ OGRFeature* OGRWFS3Layer::GetNextRawFeature()
                 CPLJSONArray oLinks = oDoc.GetRoot().GetArray("links");
                 if( oLinks.IsValid() )
                 {
+                    int nCountRelNext = 0;
+                    CPLString osNextURL;
                     for( int i = 0; i < oLinks.Size(); i++ )
                     {
                         CPLJSONObject oLink = oLinks[i];
@@ -686,13 +721,26 @@ OGRFeature* OGRWFS3Layer::GetNextRawFeature()
                         {
                             continue;
                         }
-                        if( oLink.GetString("rel") == "next" &&
-                            (oLink.GetString("type") == "application/geo+json" ||
-                             oLink.GetString("type") == "application/json") )
+                        if( oLink.GetString("rel") == "next" )
                         {
-                            m_osGetURL = oLink.GetString("href");
-                            break;
+                            nCountRelNext ++;
+                            auto type = oLink.GetString("type");
+                            if (type == "application/geo+json" ||
+                                type == "application/json" )
+                            {
+                                m_osGetURL = oLink.GetString("href");
+                                break;
+                            }
+                            else if( type.empty() )
+                            {
+                                osNextURL = oLink.GetString("href");
+                            }
                         }
+                    }
+                    if( nCountRelNext == 1 && m_osGetURL.empty() )
+                    {
+                        // In case we go a "rel": "next" without a "type"
+                        m_osGetURL = osNextURL;
                     }
                 }
 
@@ -719,6 +767,32 @@ OGRFeature* OGRWFS3Layer::GetNextRawFeature()
                         }
                     }
                 }
+
+                // If source URL is https://user:pwd@server.com/bla
+                // and link only contains https://server.com/bla, then insert
+                // into it user:pwd
+                const auto nArobaseInURLPos = osURL.find('@');
+                if( !m_osGetURL.empty() &&
+                    STARTS_WITH(osURL, "https://") &&
+                    STARTS_WITH(m_osGetURL, "https://") &&
+                    nArobaseInURLPos != std::string::npos &&
+                    m_osGetURL.find('@') == std::string::npos )
+                {
+                    const auto nFirstSlashPos = osURL.find('/', strlen("https://"));
+                    if( nFirstSlashPos != std::string::npos &&
+                        nFirstSlashPos > nArobaseInURLPos )
+                    {
+                        auto osUserPwd = osURL.substr(strlen("https://"),
+                                        nArobaseInURLPos - strlen("https://"));
+                        auto osServer = osURL.substr(nArobaseInURLPos + 1,
+                                                     nFirstSlashPos - nArobaseInURLPos);
+                        if( STARTS_WITH(m_osGetURL, ("https://" + osServer).c_str()) )
+                        {
+                            m_osGetURL = "https://" + osUserPwd + "@" +
+                                    m_osGetURL.substr(strlen("https://"));
+                        }
+                    }
+                }
             }
         }
 
@@ -731,6 +805,11 @@ OGRFeature* OGRWFS3Layer::GetNextRawFeature()
 
     OGRFeature* poFeature = new OGRFeature(m_poFeatureDefn);
     poFeature->SetFrom(poSrcFeature);
+    auto poGeom = poFeature->GetGeometryRef();
+    if( poGeom )
+    {
+        poGeom->assignSpatialReference(GetSpatialRef());
+    }
     poFeature->SetFID(m_nFID);
     m_nFID ++;
     delete poSrcFeature;
@@ -1059,6 +1138,8 @@ void RegisterOGRWFS3()
         "description='URL to the WFS server endpoint' required='true'/>"
 "  <Option name='PAGE_SIZE' type='int' "
         "description='Maximum number of features to retrieve in a single request'/>"
+"  <Option name='USERPWD' type='string' "
+        "description='Basic authentication as username:password'/>"
 "</OpenOptionList>" );
 
     poDriver->pfnIdentify = OGRWFS3DriverIdentify;

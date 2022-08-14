@@ -380,7 +380,8 @@ VSIS3HandleHelper::VSIS3HandleHelper( const CPLString& osSecretAccessKey,
                                       const CPLString& osBucket,
                                       const CPLString& osObjectKey,
                                       bool bUseHTTPS,
-                                      bool bUseVirtualHosting ) :
+                                      bool bUseVirtualHosting,
+                                      bool bFromEC2 ) :
     m_osURL(BuildURL(osEndpoint, osBucket, osObjectKey, bUseHTTPS,
                      bUseVirtualHosting)),
     m_osSecretAccessKey(osSecretAccessKey),
@@ -392,7 +393,8 @@ VSIS3HandleHelper::VSIS3HandleHelper( const CPLString& osSecretAccessKey,
     m_osBucket(osBucket),
     m_osObjectKey(osObjectKey),
     m_bUseHTTPS(bUseHTTPS),
-    m_bUseVirtualHosting(bUseVirtualHosting)
+    m_bUseVirtualHosting(bUseVirtualHosting),
+    m_bFromEC2(bFromEC2)
 {}
 
 /************************************************************************/
@@ -689,37 +691,51 @@ bool VSIS3HandleHelper::GetConfigurationFromEC2(CPLString& osSecretAccessKey,
         return true;
     }
 
-    const CPLString osEC2CredentialsURL(
-        CPLGetConfigOption("CPL_AWS_EC2_CREDENTIALS_URL",
-            "http://169.254.169.254/latest/meta-data/iam/security-credentials/"));
-    if( osIAMRole.empty() && !osEC2CredentialsURL.empty() )
+    CPLString osURLRefreshCredentials;
+    CPLString osCPL_AWS_EC2_CREDENTIALS_URL(
+        CPLGetConfigOption("CPL_AWS_EC2_CREDENTIALS_URL", ""));
+    const CPLString osECSRelativeURI(
+        CPLGetConfigOption("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", ""));
+    if( osCPL_AWS_EC2_CREDENTIALS_URL.empty() && !osECSRelativeURI.empty() )
     {
-        // If we don't know yet the IAM role, fetch it
-        if( IsMachinePotentiallyEC2Instance() )
+        // See https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
+        osURLRefreshCredentials = "http://169.254.170.2" + osECSRelativeURI;
+    }
+    else
+    {
+        const CPLString osDefaultURL(
+            "http://169.254.169.254/latest/meta-data/iam/security-credentials/");
+        const CPLString osEC2CredentialsURL =
+            osCPL_AWS_EC2_CREDENTIALS_URL.empty() ? osDefaultURL : osCPL_AWS_EC2_CREDENTIALS_URL;
+        if( osIAMRole.empty() && !osEC2CredentialsURL.empty() )
         {
-            char** papszOptions = CSLSetNameValue(nullptr, "TIMEOUT", "1");
-            CPLPushErrorHandler(CPLQuietErrorHandler);
-            CPLHTTPResult* psResult =
-                        CPLHTTPFetch( osEC2CredentialsURL, papszOptions );
-            CPLPopErrorHandler();
-            CSLDestroy(papszOptions);
-            if( psResult )
+            // If we don't know yet the IAM role, fetch it
+            if( IsMachinePotentiallyEC2Instance() )
             {
-                if( psResult->nStatus == 0 && psResult->pabyData != nullptr )
+                char** papszOptions = CSLSetNameValue(nullptr, "TIMEOUT", "1");
+                CPLPushErrorHandler(CPLQuietErrorHandler);
+                CPLHTTPResult* psResult =
+                            CPLHTTPFetch( osEC2CredentialsURL, papszOptions );
+                CPLPopErrorHandler();
+                CSLDestroy(papszOptions);
+                if( psResult )
                 {
-                    osIAMRole = reinterpret_cast<char*>(psResult->pabyData);
+                    if( psResult->nStatus == 0 && psResult->pabyData != nullptr )
+                    {
+                        osIAMRole = reinterpret_cast<char*>(psResult->pabyData);
+                    }
+                    CPLHTTPDestroyResult(psResult);
                 }
-                CPLHTTPDestroyResult(psResult);
             }
         }
+        if( osIAMRole.empty() )
+            return false;
+        osURLRefreshCredentials = osEC2CredentialsURL + osIAMRole;
     }
-    if( osIAMRole.empty() )
-        return false;
 
     // Now fetch the refreshed credentials
     CPLStringList oResponse;
-    CPLHTTPResult* psResult = CPLHTTPFetch(
-        (osEC2CredentialsURL + osIAMRole).c_str(), nullptr );
+    CPLHTTPResult* psResult = CPLHTTPFetch(osURLRefreshCredentials.c_str(), nullptr );
     if( psResult )
     {
         if( psResult->nStatus == 0 && psResult->pabyData != nullptr )
@@ -955,8 +971,11 @@ bool VSIS3HandleHelper::GetConfiguration(CSLConstList papszOptions,
                                          CPLString& osSecretAccessKey,
                                          CPLString& osAccessKeyId,
                                          CPLString& osSessionToken,
-                                         CPLString& osRegion)
+                                         CPLString& osRegion,
+                                         bool& bFromEC2)
 {
+    bFromEC2 = false;
+
     // AWS_REGION is GDAL specific. Later overloaded by standard
     // AWS_DEFAULT_REGION
     osRegion = CSLFetchNameValueDef(papszOptions, "AWS_REGION",
@@ -1002,6 +1021,7 @@ bool VSIS3HandleHelper::GetConfiguration(CSLConstList papszOptions,
     if( GetConfigurationFromEC2(osSecretAccessKey, osAccessKeyId,
                                 osSessionToken) )
     {
+        bFromEC2 = true;
         return true;
     }
 
@@ -1051,9 +1071,10 @@ VSIS3HandleHelper* VSIS3HandleHelper::BuildFromURI( const char* pszURI,
     CPLString osAccessKeyId;
     CPLString osSessionToken;
     CPLString osRegion;
+    bool bFromEC2 = false;
     if( !GetConfiguration(papszOptions,
                           osSecretAccessKey, osAccessKeyId,
-                          osSessionToken, osRegion) )
+                          osSessionToken, osRegion, bFromEC2) )
     {
         return nullptr;
     }
@@ -1092,7 +1113,7 @@ VSIS3HandleHelper* VSIS3HandleHelper::BuildFromURI( const char* pszURI,
                                  osEndpoint, osRegion,
                                  osRequestPayer,
                                  osBucket, osObjectKey, bUseHTTPS,
-                                 bUseVirtualHosting);
+                                 bUseVirtualHosting, bFromEC2);
 }
 
 /************************************************************************/
@@ -1151,6 +1172,19 @@ VSIS3HandleHelper::GetCurlHeaders( const CPLString& osVerb,
                                    const void *pabyDataContent,
                                    size_t nBytesContent ) const
 {
+    if( m_bFromEC2 )
+    {
+        CPLString osSecretAccessKey, osAccessKeyId, osSessionToken;
+        if( GetConfigurationFromEC2(osSecretAccessKey,
+                                    osAccessKeyId,
+                                    osSessionToken) )
+        {
+            m_osSecretAccessKey = osSecretAccessKey;
+            m_osAccessKeyId = osAccessKeyId;
+            m_osSessionToken = osSessionToken;
+        }
+    }
+
     CPLString osXAMZDate = CPLGetConfigOption("AWS_TIMESTAMP", "");
     if( osXAMZDate.empty() )
         osXAMZDate = CPLGetAWS_SIGN4_Timestamp();
