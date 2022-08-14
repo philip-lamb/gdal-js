@@ -5,7 +5,8 @@ EMCC ?= emcc
 EMCONFIGURE ?= emconfigure
 EMCONFIGURE_JS ?= 0
 GDAL_EMCC_CFLAGS := -O3
-PROJ_EMCC_CFLAGS := -O3
+# -fPIC allows PROJ4 to be linked successfully when using MAIN_MODULE=2 in GDAL
+PROJ_EMCC_CFLAGS := -O3 -fPIC
 EXPORTED_FUNCTIONS = "[\
   '_malloc',\
   '_free',\
@@ -91,10 +92,14 @@ gdal: gdal.js
 
 # See https://github.com/emscripten-core/emscripten/issues/6090 for why disabling errors on undefined is necessary
 # I wasn't able to find an equivalent workaround to what was described in that thread using the GDAL build system.
+# GDAL insists on using dlopen() even when it's compiled entirely statically, which causes Emscripten to throw an 
+# error. Compiling using MAIN_MODULE=2 allows dlopen() to function correctly while maintaining other benefits of
+# code elimination.
 gdal.js: $(GDAL)/libgdal.a
 	EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMCC) $(GDAL)/libgdal.a $(PROJ4)/src/.libs/libproj.a -o gdal.js \
 		-s EXPORTED_FUNCTIONS=$(EXPORTED_FUNCTIONS) \
 		-s EXPORTED_RUNTIME_METHODS=$(EXPORTED_RUNTIME_FUNCTIONS) \
+		-s MAIN_MODULE=2 \
 		-s ALLOW_MEMORY_GROWTH \
 		-s INITIAL_MEMORY=256MB \
 		-s MAXIMUM_MEMORY=2GB \
@@ -117,12 +122,15 @@ gdal.js: $(GDAL)/libgdal.a
 
 
 $(GDAL)/libgdal.a: $(PROJ4)/src/.libs/libproj.a $(GDAL)/config.status
-	cd $(GDAL) && EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMMAKE) make lib-target
+	cd $(GDAL) && EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMMAKE) make static-lib
 
 # TODO: Pass the configure params more elegantly so that this uses the
 # EMCONFIGURE variable
+# Disables the "-Wno-limited-postlink-optimizations" warning because this warning causes one of
+# GDAL's configure checks to fail because it assumes that success will result in zero-length
+# output from the compiler, and printing a warning breaks that assumption.
 $(GDAL)/config.status: $(GDAL)/configure
-	cd $(GDAL) && emconfigure ./configure $(GDAL_CONFIG_OPTIONS)
+	cd $(GDAL) && EMCC_CFLAGS="-Wno-limited-postlink-optimizations" emconfigure ./configure $(GDAL_CONFIG_OPTIONS)
 
 ##########
 # PROJ.4 #

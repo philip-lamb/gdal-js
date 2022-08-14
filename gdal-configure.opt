@@ -1,10 +1,11 @@
 # A is just a temporary variable to keep these lines short; not sure if there's
 # a better way to do this.
 A = --enable-static
-A += --enable-pdf-plugin=no
-A += --without-libtool
+A += --enable-shared=no
 A += --without-ld-shared
 A += --without-threads
+A += --enable-pdf-plugin=no
+A += --without-libtool
 A += --with-libz=internal
 A += --without-libiconv-prefix
 A += --without-liblzma
@@ -79,6 +80,6 @@ A += --without-mdb
 A += --without-rasdaman
 A += --without-armadillo
 A += --without-cryptopp
-A += --with-static-proj4=$(CURDIR)/proj4
+A += --with-proj=$(CURDIR)/proj4
 
 GDAL_CONFIG_OPTIONS := $(A)
