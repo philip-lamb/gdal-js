@@ -1,30 +1,143 @@
-GDAL - Geospatial Data Abstraction Library
-====
+GDAL JS
+==============
+An [Emscripten](https://github.com/kripken/emscripten) port of [GDAL](http://www.gdal.org) 2.4.
 
-| Environment              | Status        |
-| ------------------------ |:-------------:|
-| Ubuntu 12.04 64 bit      | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=precise_clang&label=precise_clang)](https://travis-ci.org/OSGeo/gdal) |
-| Ubuntu 12.04 32 bit      | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=precise_32bit&label=precise_32bit)](https://travis-ci.org/OSGeo/gdal) |
-| Ubuntu 14.04 64 bit      | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=trusty_clang&label=trusty_clang)](https://travis-ci.org/OSGeo/gdal) |
-| Ubuntu 16.04 64 / CL 3.9 | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=ubuntu_1604&label=ubuntu_1604)](https://travis-ci.org/OSGeo/gdal) |
-| Python 3                 | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=python3&label=python3)](https://travis-ci.org/OSGeo/gdal) |
-| MacOS X                  | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=osx&label=osx)](https://travis-ci.org/OSGeo/gdal) |
-| MSVC 2008                | [![Build status](https://ci.appveyor.com/api/projects/status/tn5oj0ipp5lmexjh/branch/trunk_vc9?svg=true)](https://ci.appveyor.com/project/rouault/gdal-coverage) |
-| MSVC 2013 32 & 64 bit    | [![Build status](https://ci.appveyor.com/api/projects/status/jtwx0pcr0y01i17p/branch/trunk?svg=true)](https://ci.appveyor.com/project/OSGeo/gdal) |
-| MSVC 2015 32 & 64 bit    | [![Build status](https://ci.appveyor.com/api/projects/status/tn5oj0ipp5lmexjh/branch/trunk_vc13?svg=true)](https://ci.appveyor.com/project/rouault/gdal-coverage) |
-| MinGW                    | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=mingw&label=mingw)](https://travis-ci.org/OSGeo/gdal) |
-| MinGW_W64                | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=mingw_w64&label=mingw_w64)](https://travis-ci.org/OSGeo/gdal) |
-| Android                  | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=android&label=android)](https://travis-ci.org/OSGeo/gdal) |
-| Big endian host          | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=big_endian&label=big_endian)](https://travis-ci.org/OSGeo/gdal) |
-| GCC 4.8 C++11            | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=gcc48_stdcpp11&label=gcc48_stdcpp11)](https://travis-ci.org/OSGeo/gdal) |
-| GCC 5.2 C++14 -fsanitize | [![Build Status](http://badges.herokuapp.com/travis/OSGeo/gdal?branch=trunk&env=BUILD_NAME=gcc52_stdcpp14_sanitize&label=gcc52_stdcpp14_sanitize)](https://travis-ci.org/OSGeo/gdal) |
-| Clang Static Analyzer    | [![Build Status](https://travis-ci.org/rouault/gdal_coverage.svg?branch=trunk_clang_static_analyzer)](https://travis-ci.org/rouault/gdal_coverage) |
-| Coverity Scan            | [![Build Status](https://scan.coverity.com/projects/749/badge.svg?flat=1)](https://scan.coverity.com/projects/gdal) |
+Installation
+---------------
+```
+npm install gdal-js
+```
 
-GDAL is an open source X/MIT licensed translator library for raster and vector geospatial data formats. This is a mirror of the GDAL Subversion repository.
+Usage
+---------------
+*Caution!* It is strongly recommended to run this code inside of a web worker.
+To see complete examples for how to do this, checkout the `examples` directory.
+From simplest to most complex, these are:
 
-* Main site: http://www.gdal.org - Developer and user docs, links to other resources
-* SVN repository: http://svn.osgeo.org/gdal
-* Download: http://download.osgeo.org/gdal
-* Wiki: http://trac.osgeo.org/gdal - Bug tracking, various user and developer contributed documentation and hints
-* Mailing list: http://lists.osgeo.org/mailman/listinfo/gdal-dev
+1. `inspect_geotiff`
+2. `inspect_vector`
+3. `map_extent`
+4. `thumbnail`
+5. `thumbnail_map`
+6. `tile_tiff`
+
+If you want to use GDAL from within a Node application, you are probably looking
+for [https://www.npmjs.com/package/gdal](https://www.npmjs.com/package/gdal).
+
+This library exports the following GDAL functions:
+- CSLCount
+- GDALSetCacheMax
+- GDALAllRegister
+- GDALOpen
+- GDALOpenEx
+- GDALClose
+- GDALGetDriverByName
+- GDALCreate
+- GDALCreateCopy
+- GDALGetRasterXSize
+- GDALGetRasterYSize
+- GDALGetRasterCount
+- GDALGetRasterDataType
+- GDALGetRasterBand
+- GDALGetRasterStatistics
+- GDALGetRasterMinimum
+- GDALGetRasterMaximum
+- GDALGetRasterNoDataValue
+- GDALGetProjectionRef
+- GDALSetProjection
+- GDALGetGeoTransform
+- GDALSetGeoTransform
+- OSRNewSpatialReference
+- OSRDestroySpatialReference
+- OSRImportFromEPSG
+- OCTNewCoordinateTransformation
+- OCTDestroyCoordinateTransformation
+- OCTTransform
+- GDALCreateGenImgProjTransformer
+- GDALDestroyGenImgProjTransformer
+- GDALGenImgProjTransform
+- GDALDestroyGenImgProjTransformer
+- GDALSuggestedWarpOutput
+- GDALTranslate
+- GDALTranslateOptionsNew
+- GDALTranslateOptionsFree
+- GDALWarpAppOptionsNew
+- GDALWarpAppOptionsSetProgress
+- GDALWarpAppOptionsFree
+- GDALWarp
+- GDALBuildVRTOptionsNew
+- GDALBuildVRTOptionsFree
+- GDALBuildVRT
+- GDALReprojectImage
+- CPLError
+- CPLSetErrorHandler
+- CPLQuietErrorHandler
+- CPLErrorReset
+- CPLGetLastErrorMsg
+- CPLGetLastErrorNo
+- CPLGetLastErrorType
+- GDALRasterize
+- GDALRasterizeOptionsNew
+- GDALRasterizeOptionsFree
+- GDALDEMProcessing
+- GDALDEMProcessingOptionsNew
+- GDALDEMProcessingOptionsFree
+- GDALDatasetGetLayer
+- GDALDatasetGetLayerByName
+- GDALDatasetGetLayerCount
+- GDALDatasetExecuteSQL
+- OGR\_L\_GetNextFeature
+- OGR\_L\_GetExtent
+- OGR\_L\_GetLayerDefn
+- OGR\_L\_ResetReading
+- OGR\_L\_GetName
+- OGR\_F\_GetFieldAsInteger
+- OGR\_F\_GetFieldAsInteger64
+- OGR\_F\_GetFieldAsDouble
+- OGR\_F\_GetFieldAsString
+- OGR\_F\_GetFieldAsBinary
+- OGR\_F\_GetFieldAsDateTime
+- OGR\_F\_GetFieldAsDateTimeEx
+- OGR\_F\_GetFieldAsDoubleList
+- OGR\_F\_GetFieldAsIntegerList
+- OGR\_F\_GetFieldAsInteger64List
+- OGR\_F\_GetFieldAsStringList
+- OGR\_F\_GetGeometryRef
+- OGR\_F\_Destroy
+- OGR\_FD\_GetFieldCount
+- OGR\_FD\_GetFieldDefn
+- OGR\_Fld\_GetType
+- OGR\_Fld\_GetNameRef
+- OGR\_G\_GetGeometryType
+- OGR\_G\_GetX
+- OGR\_G\_GetY
+- OGR\_G\_GetPoint
+- OGR\_G\_GetPoints
+- OGR\_G\_GetPointCount
+- OGR\_G\_GetEnvelope
+- OGR\_G\_GetSpatialReference
+- OGR\_G\_Intersects
+- OGR\_G\_Simplify
+- OGR\_G\_Touches
+- OGR\_G\_Transform
+- OGR\_G\_Within
+- OGR\_G\_ExportToGML
+- OGR\_G\_ExportToJson
+- OGR\_G\_ExportToJsonEx
+- OGR\_G\_ExportToKML
+- OGR\_G\_ExportToWkb
+- OGR\_G\_ExportToWkt
+
+For documentation of these functions' behavior, please see the
+[GDAL documentation](http://www.gdal.org/gdal_8h.html)
+
+In order to limit build size, GDAL is currently built with raster support for GeoTIFFs, PNGs, and JPEGs only.
+
+Developing
+-----------
+1. Install Docker
+2. Run `./scripts/setup`, which will build the Docker container.
+3. Run `./scripts/make gdal`. The make script just calls `make` from inside the Docker container.
+4. `./scripts/make clean` works as expected.
+5. To package up a release, run `./scripts/make VERSION=<number> release`
+
