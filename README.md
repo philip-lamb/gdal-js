@@ -127,6 +127,10 @@ This library exports the following GDAL functions:
 - OGR\_G\_ExportToKML
 - OGR\_G\_ExportToWkb
 - OGR\_G\_ExportToWkt
+- GDALVectorTranslate (ogr2ogr)
+- GDALVectorTranslateOptionsFree
+- GDALVectorTranslateOptionsNew
+- GDALVectorTranslateOptionsSetProgress
 
 For documentation of these functions' behavior, please see the
 [GDAL documentation](http://www.gdal.org/gdal_8h.html)

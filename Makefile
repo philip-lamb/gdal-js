@@ -103,6 +103,8 @@ EXPORTED_FUNCTIONS = "[\
   '_OGR_G_GetSpatialReference',\
   '_OGR_G_Intersects',\
   '_OGR_G_Simplify',\
+  '_OGR_G_Set3D',\
+  '_OGR_G_SetMeasured',\
   '_OGR_G_Touches',\
   '_OGR_G_Transform',\
   '_OGR_G_Within',\
@@ -111,7 +113,11 @@ EXPORTED_FUNCTIONS = "[\
   '_OGR_G_ExportToJsonEx',\
   '_OGR_G_ExportToKML',\
   '_OGR_G_ExportToWkb',\
-  '_OGR_G_ExportToWkt'\
+  '_OGR_G_ExportToWkt',\
+  '_GDALVectorTranslate',\
+  '_GDALVectorTranslateOptionsFree',\
+  '_GDALVectorTranslateOptionsNew',\
+  '_GDALVectorTranslateOptionsSetProgress'\
 ]"
 
 EXPORTED_RUNTIME_FUNCTIONS="[\
