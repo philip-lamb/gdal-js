@@ -37,15 +37,17 @@ OBJ	= \
 	tif_warning.obj \
 	tif_write.obj \
 	tif_zip.obj \
-    tif_lzma.obj
+	tif_lzma.obj \
+	tif_zstd.obj \
+	tif_webp.obj
 
 GDAL_ROOT	=	..\..\..
 
 # /wd4324 silents warning C4324: '<unnamed-tag>' : structure was padded due to __declspec(align())
 # in tif_jpeg.c:147 and tif_ojpeg.c:248
 
-EXTRAFLAGS = 	-I..\..\zlib -DZIP_SUPPORT -DPIXARLOG_SUPPORT \
-		$(JPEG_FLAGS) $(JPEG12_FLAGS) $(LZMA_FLAGS) /wd4324
+EXTRAFLAGS = 	$(ZLIB_FLAGS) -DZIP_SUPPORT -DPIXARLOG_SUPPORT \
+		$(JPEG_FLAGS) $(JPEG12_FLAGS) $(LZMA_FLAGS) $(ZSTD_FLAGS) $(WEBP_FLAGS) /wd4324
 
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
@@ -57,6 +59,12 @@ JPEG_FLAGS =	-I..\..\jpeg\libjpeg -DJPEG_SUPPORT -DOJPEG_SUPPORT
 !ENDIF
 !ENDIF
 
+!IFDEF ZLIB_EXTERNAL_LIB
+ZLIB_FLAGS = $(ZLIB_INC)
+!ELSE
+ZLIB_FLAGS = -I..\..\zlib
+!ENDIF
+
 !IFDEF JPEG12_SUPPORTED
 JPEG12_FLAGS =	-DJPEG_DUAL_MODE_8_12
 EXTRA_DEP    =  libjpeg12src
@@ -65,6 +73,15 @@ EXTRA_DEP    =  libjpeg12src
 !IFDEF LZMA_CFLAGS
 LZMA_FLAGS =	$(LZMA_CFLAGS) -DLZMA_SUPPORT
 !ENDIF
+
+!IFDEF ZSTD_CFLAGS
+ZSTD_FLAGS =	$(ZSTD_CFLAGS) -DZSTD_SUPPORT
+!ENDIF
+
+!IFDEF WEBP_CFLAGS
+WEBP_FLAGS =	$(WEBP_CFLAGS) -DWEBP_SUPPORT
+!ENDIF
+
 
 
 
@@ -78,4 +95,3 @@ libjpeg12src:
 	cd ../../jpeg/libjpeg12
 	$(MAKE) /f makefile.vc jcapimin12.c
 	cd ../../gtiff/libtiff
-	

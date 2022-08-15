@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  CouchDB Translator
  * Purpose:  Implements OGRCouchDBRowsLayer class.
@@ -29,7 +28,7 @@
 
 #include "ogr_couchdb.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                         OGRCouchDBRowsLayer()                        */
@@ -37,7 +36,7 @@ CPL_CVSID("$Id$");
 
 OGRCouchDBRowsLayer::OGRCouchDBRowsLayer(OGRCouchDBDataSource* poDSIn) :
     OGRCouchDBLayer(poDSIn),
-    bAllInOne(FALSE)
+    bAllInOne(false)
 {
     poFeatureDefn = new OGRFeatureDefn( "rows" );
     poFeatureDefn->Reference();
@@ -66,10 +65,10 @@ void OGRCouchDBRowsLayer::ResetReading()
 {
     OGRCouchDBLayer::ResetReading();
 
-    if (!bAllInOne)
+    if( !bAllInOne )
     {
         json_object_put(poFeatures);
-        poFeatures = NULL;
+        poFeatures = nullptr;
         aoFeatures.resize(0);
     }
 }
@@ -78,35 +77,35 @@ void OGRCouchDBRowsLayer::ResetReading()
 /*                           FetchNextRows()                            */
 /************************************************************************/
 
-int OGRCouchDBRowsLayer::FetchNextRows()
+bool OGRCouchDBRowsLayer::FetchNextRows()
 {
-    if (bAllInOne)
-        return FALSE;
+    if( bAllInOne )
+        return false;
 
     json_object_put(poFeatures);
-    poFeatures = NULL;
+    poFeatures = nullptr;
     aoFeatures.resize(0);
 
-    int bHasEsperluet = (strstr(poDS->GetURL(), "?") != NULL);
+    bool bHasEsperluet = strstr(poDS->GetURL(), "?") != nullptr;
 
     CPLString osURI;
-    if (strstr(poDS->GetURL(), "limit=") == NULL &&
-        strstr(poDS->GetURL(), "skip=") == NULL)
+    if (strstr(poDS->GetURL(), "limit=") == nullptr &&
+        strstr(poDS->GetURL(), "skip=") == nullptr)
     {
         if (!bHasEsperluet)
         {
-            bHasEsperluet = TRUE;
+            bHasEsperluet = true;
             osURI += "?";
         }
 
         osURI += CPLSPrintf("&limit=%d&skip=%d",
                             GetFeaturesToFetch(), nOffset);
     }
-    if (strstr(poDS->GetURL(), "reduce=") == NULL)
+    if (strstr(poDS->GetURL(), "reduce=") == nullptr)
     {
-        if (!bHasEsperluet)
+        if( !bHasEsperluet )
         {
-            /*bHasEsperluet = TRUE;*/
+            // bHasEsperluet = true;
             osURI += "?";
         }
 
@@ -120,18 +119,18 @@ int OGRCouchDBRowsLayer::FetchNextRows()
 /*                         BuildFeatureDefn()                           */
 /************************************************************************/
 
-int OGRCouchDBRowsLayer::BuildFeatureDefn()
+bool OGRCouchDBRowsLayer::BuildFeatureDefn()
 {
-    int bRet = FetchNextRows();
+    bool bRet = FetchNextRows();
     if (!bRet)
-        return FALSE;
+        return false;
 
     bRet = BuildFeatureDefnFromRows(poFeatures);
     if (!bRet)
-        return FALSE;
+        return false;
 
-    if ( bEOF )
-        bAllInOne = TRUE;
+    if( bEOF )
+        bAllInOne = true;
 
-    return TRUE;
+    return true;
 }

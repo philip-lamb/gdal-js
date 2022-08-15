@@ -32,9 +32,6 @@
 import math
 import sys
 
-from osgeo import gdal
-gdal.TermProgress = gdal.TermProgress_nocb
-
 try:
     import numpy as Numeric
     Numeric.arrayrange = Numeric.arange
@@ -43,10 +40,14 @@ except ImportError:
 
 try:
     from osgeo import gdal_array as gdalnumeric
+    from osgeo import gdal
+    gdal.TermProgress = gdal.TermProgress_nocb
 except ImportError:
     import gdalnumeric
 
 # =============================================================================
+
+
 def Usage():
     print('Usage: rel.py -lsrcaz azimuth -lsrcel elevation [-elstep step]')
     print('       [-dx xsize] [-dy ysize] [-b band] [-ot type] infile outfile')
@@ -71,38 +72,40 @@ def Usage():
 # =============================================================================
 
 # =============================================================================
-def ParseType(type):
-    if type == 'Byte':
+
+
+def ParseType(typ):
+    if typ == 'Byte':
         return gdal.GDT_Byte
-    elif type == 'Int16':
+    if typ == 'Int16':
         return gdal.GDT_Int16
-    elif type == 'UInt16':
+    if typ == 'UInt16':
         return gdal.GDT_UInt16
-    elif type == 'Int32':
+    if typ == 'Int32':
         return gdal.GDT_Int32
-    elif type == 'UInt32':
+    if typ == 'UInt32':
         return gdal.GDT_UInt32
-    elif type == 'Float32':
+    if typ == 'Float32':
         return gdal.GDT_Float32
-    elif type == 'Float64':
+    if typ == 'Float64':
         return gdal.GDT_Float64
-    elif type == 'CInt16':
+    if typ == 'CInt16':
         return gdal.GDT_CInt16
-    elif type == 'CInt32':
+    if typ == 'CInt32':
         return gdal.GDT_CInt32
-    elif type == 'CFloat32':
+    if typ == 'CFloat32':
         return gdal.GDT_CFloat32
-    elif type == 'CFloat64':
+    if typ == 'CFloat64':
         return gdal.GDT_CFloat64
-    else:
-        return gdal.GDT_Byte
+    return gdal.GDT_Byte
 # =============================================================================
+
 
 infile = None
 outfile = None
 iBand = 1	    # The first band will be converted by default
-format = 'GTiff'
-type = gdal.GDT_Byte
+frmt = 'GTiff'
+typ = gdal.GDT_Byte
 
 lsrcaz = None
 lsrcel = None
@@ -122,7 +125,7 @@ while i < len(sys.argv):
 
     elif arg == '-ot':
         i += 1
-        type = ParseType(sys.argv[i])
+        typ = ParseType(sys.argv[i])
 
     elif arg == '-lsrcaz':
         i += 1
@@ -173,12 +176,12 @@ lsrcaz = lsrcaz / 180.0 * math.pi
 lsrcel = lsrcel / 180.0 * math.pi
 
 lx = -math.sin(lsrcaz) * math.cos(lsrcel)
-ly =  math.cos(lsrcaz) * math.cos(lsrcel)
-lz =  math.sin(lsrcel)
+ly = math.cos(lsrcaz) * math.cos(lsrcel)
+lz = math.sin(lsrcel)
 lxyz = math.sqrt(lx**2 + ly**2 + lz**2)
 
 indataset = gdal.Open(infile, gdal.GA_ReadOnly)
-if indataset == None:
+if indataset is None:
     print('Cannot open', infile)
     sys.exit(2)
 
@@ -186,8 +189,8 @@ if indataset.RasterXSize < 3 or indataset.RasterYSize < 3:
     print('Input image is too small to process, minimum size is 3x3')
     sys.exit(3)
 
-out_driver = gdal.GetDriverByName(format)
-outdataset = out_driver.Create(outfile, indataset.RasterXSize, indataset.RasterYSize, indataset.RasterCount, type)
+out_driver = gdal.GetDriverByName(frmt)
+outdataset = out_driver.Create(outfile, indataset.RasterXSize, indataset.RasterYSize, indataset.RasterCount, typ)
 outband = outdataset.GetRasterBand(1)
 
 geotransform = indataset.GetGeoTransform()
@@ -199,11 +202,11 @@ if ysize is None:
     ysize = abs(geotransform[5])
 
 inband = indataset.GetRasterBand(iBand)
-if inband == None:
+if inband is None:
     print('Cannot load band', iBand, 'from the', infile)
     sys.exit(2)
 
-numtype = gdalnumeric.GDALTypeCodeToNumericTypeCode(type)
+numtype = gdalnumeric.GDALTypeCodeToNumericTypeCode(typ)
 outline = Numeric.empty((1, inband.XSize), numtype)
 
 prev = inband.ReadAsArray(0, 0, inband.XSize, 1, inband.XSize, 1)[0]
@@ -224,9 +227,9 @@ for i in range(1, inband.YSize - 1):
     nx = -dy * dzx
     ny = dx * dzy
     nz = dx * dy
-    nxyz = nx*nx + ny*ny + nz*nz
-    nlxyz = nx*lx + ny*ly + nz*lz
-    cosine = dyn_range * ( nlxyz / (lxyz * Numeric.sqrt(nxyz)))
+    nxyz = nx * nx + ny * ny + nz * nz
+    nlxyz = nx * lx + ny * ly + nz * lz
+    cosine = dyn_range * (nlxyz / (lxyz * Numeric.sqrt(nxyz)))
     cosine = Numeric.clip(cosine, 0.0, dyn_range)
     outline[0, 1:-1] = cosine.astype(numtype)
     outband.WriteArray(outline, 0, i)
@@ -239,4 +242,3 @@ for i in range(1, inband.YSize - 1):
 
 outdataset.SetGeoTransform(geotransform)
 outdataset.SetProjection(projection)
-

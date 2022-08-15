@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  GDAL/OGR Geography Network support (Geographic Network Model)
  * Purpose:  Function to register all known OGR drivers.
@@ -31,7 +30,7 @@
 
 #include "gnm_frmts.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 void GNMRegisterAllInternal()
 {

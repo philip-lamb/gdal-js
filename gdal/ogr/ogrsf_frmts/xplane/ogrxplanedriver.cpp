@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id: ogrxplanedriver.cpp
  *
  * Project:  X-Plane aeronautical data reader
  * Purpose:  Implements OGRXPlaneDriver.
@@ -30,6 +29,8 @@
 #include "ogr_xplane.h"
 #include "cpl_conv.h"
 
+CPL_CVSID("$Id$")
+
 /************************************************************************/
 /*                              GetName()                               */
 /************************************************************************/
@@ -47,15 +48,15 @@ const char *OGRXPlaneDriver::GetName()
 OGRDataSource *OGRXPlaneDriver::Open( const char * pszFilename, int bUpdate )
 
 {
-    if ( bUpdate )
+    if( bUpdate )
     {
-        return NULL;
+        return nullptr;
     }
 
     if( !EQUAL(CPLGetExtension(pszFilename), "dat") )
-        return NULL;
+        return nullptr;
 
-    OGRXPlaneDataSource   *poDS = new OGRXPlaneDataSource();
+    OGRXPlaneDataSource *poDS = new OGRXPlaneDataSource();
 
     bool bReadWholeFile = CPLTestBool(
         CPLGetConfigOption("OGR_XPLANE_READ_WHOLE_FILE", "TRUE"));
@@ -63,7 +64,7 @@ OGRDataSource *OGRXPlaneDriver::Open( const char * pszFilename, int bUpdate )
     if( !poDS->Open( pszFilename, bReadWholeFile ) )
     {
         delete poDS;
-        poDS = NULL;
+        poDS = nullptr;
     }
 
     return poDS;

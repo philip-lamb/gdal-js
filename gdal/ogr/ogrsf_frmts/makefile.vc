@@ -8,7 +8,7 @@ DIRLIST		=	generic geojson shape ntf sdts tiger s57 dgn mitab gml \
 			avc rec mem vrt csv gmt bna kml gpx \
 			geoconcept xplane georss gtm dxf pgdump gpsbabel \
 			sua openair pds htf aeronavfaa edigeo svg idrisi arcgen \
-			segukooa segy sxf openfilegdb wasp selafin jml vdv \
+			segukooa segy sxf openfilegdb wasp selafin jml vdv mvt \
 			$(ARCOBJECTS_DIR) \
 			$(OGDIDIR) $(FMEDIR) $(OCIDIR) $(PG_DIR) $(DWGDIR) \
 			$(ODBCDIR) $(SQLITE_DIR) $(MYSQL_DIR) $(ILI_DIR) \
@@ -16,7 +16,7 @@ DIRLIST		=	generic geojson shape ntf sdts tiger s57 dgn mitab gml \
 			$(LIBKMLDIR) $(WFSDIR) $(SOSIDIR) $(GFTDIR) \
 			$(COUCHDBDIR) $(CLOUDANTDIR) $(FGDB_DIR) $(XLSDIR) $(ODSDIR) $(XLSXDIR) \
 			$(INGRESDIR) $(ELASTICDIR) $(OSMDIR) $(VFKDIR) $(CARTODIR) $(AMIGOCLOUD_DIR) \
-			$(PLSCENESDIR) $(CSWDIR) $(MONGODBDIR)
+			$(PLSCENESDIR) $(CSWDIR) $(MONGODBDIR) $(GMLAS_DIR) $(CAD_DIR) $(NGW_DIR)
 
 PLUGINDIRLIST	=	$(PLUGIN_ARCOBJECTS_DIR) \
 			$(PLUGIN_DWG_DIR) \
@@ -28,7 +28,8 @@ PLUGINDIRLIST	=	$(PLUGIN_ARCOBJECTS_DIR) \
 			$(PLUGIN_SDE_DIR) \
 			$(PLUGIN_INGRESDIR) \
 			$(PLUGIN_LIBKMLDIR) \
-            $(PLUGIN_MONGODBDIR)
+			$(PLUGIN_MONGODBDIR) \
+			$(PLUGIN_MSSPATIALDIR)
 
 !IFDEF OGDIDIR
 OGDIDIR	=	ogdi
@@ -40,9 +41,13 @@ ODBCDIR	=	odbc pgeo mssqlspatial geomedia db2 walk
 ODBCOBJ =	odbc\*.obj pgeo\*.obj mssqlspatial\*.obj geomedia\*.obj db2\*.obj walk\*.obj
 !ENDIF
 
+!IFDEF SQLNCLI_LIB
+PLUGIN_MSSPATIALDIR = mssqlspatial
+!ENDIF
+
 !IFDEF SQLITE_LIB
-SQLITE_DIR	=	sqlite gpkg
-SQLITE_OBJ =	sqlite\*.obj gpkg\*.obj
+SQLITE_DIR	= sqlite gpkg
+SQLITE_OBJ	= sqlite\*.obj gpkg\*.obj
 !ENDIF
 
 !IFDEF OCI_LIB
@@ -57,7 +62,7 @@ PLUGIN_OCIDIR = oci
 !IFDEF INGRES_HOME
 !IF "$(INGRES_PLUGIN)" != "YES"
 INGRESDIR	=	ingres
-INGRESOBJ =	ingres\*.obj
+INGRESOBJ	=	ingres\*.obj
 !ELSE
 PLUGIN_INGRESDIR =	ingres
 !ENDIF
@@ -77,12 +82,12 @@ PLUGIN_PG_DIR = pg
 !ENDIF
 !ENDIF
 
-!IFDEF DWGDIRECT
-!IF "$(DWG_PLUGIN)" != "YES"
-DWGDIR = dxfdwg
-DWG_OBJ = dxfdwg\*.obj
+!IFDEF TD_LIBDIR
+!IF "$(TD_PLUGIN)" != "YES"
+DWGDIR = dwg
+DWG_OBJ = dwg\*.obj
 !ELSE
-PLUGIN_DWGDIR = dxfdwg
+PLUGIN_DWG_DIR = dwg
 !ENDIF
 !ENDIF
 
@@ -127,6 +132,11 @@ ILI_OBJ = ili\*.obj ili\iom\*.obj
 !IFDEF NAS_ENABLED
 NAS_DIR = nas
 NAS_OBJ = nas\*.obj
+!ENDIF
+
+!IFDEF XERCES_INCLUDE
+GMLAS_DIR = gmlas
+GMLAS_OBJ = gmlas\*.obj
 !ENDIF
 
 !IFDEF INFORMIXDIR
@@ -231,6 +241,14 @@ PLUGIN_MONGODBDIR = mongodb
 !ENDIF
 !ENDIF
 
+!IFDEF CURL_LIB
+NGW_DIR = ngw
+NGW_OBJ = ngw\*.obj
+!ENDIF
+
+CAD_DIR = cad
+CAD_OBJ = cad\*.obj cad\libopencad\*.obj cad\libopencad\dwg\*.obj
+
 !ELSE
 
 DIRLIST		=	generic mitab
@@ -256,14 +274,14 @@ default:
 				 aeronavfaa\*.obj edigeo\*.obj svg\*.obj idrisi\*.obj \
 				 arcgen\*.obj segukooa\*.obj segy\*.obj sxf\*.obj \
 				 openfilegdb\*.obj wasp\*.obj selafin\*.obj jml\*.obj \
-				 vdv\*.obj \
+				 vdv\*.obj mvt\*.obj \
 				$(OGDIOBJ) $(ODBCOBJ) $(SQLITE_OBJ) \
 				$(FMEOBJ) $(OCIOBJ) $(PG_OBJ) $(MYSQL_OBJ) \
 				$(ILI_OBJ) $(DWG_OBJ) $(SDE_OBJ) $(FGDB_OBJ) $(ARCDRIVER_OBJ) $(IDB_OBJ) \
 				$(DODS_OBJ) $(NAS_OBJ) $(LIBKMLOBJ) $(WFS_OBJ) \
 				$(SOSI_OBJ) $(GFT_OBJ) $(COUCHDB_OBJ) $(CLOUDANT_OBJ) $(XLS_OBJ) $(ODS_OBJ) $(XLSX_OBJ)  \
 				$(INGRESOBJ) $(ELASTIC_OBJ) $(OSM_OBJ) $(VFK_OBJ) $(CARTO_OBJ) $(AMIGOCLOUD_OBJ) $(PLSCENES_OBJ) \
-				$(CSW_OBJ) $(MONGODBOBJ)
+				$(CSW_OBJ) $(MONGODBOBJ) $(GMLAS_OBJ) $(CAD_OBJ) $(NGW_OBJ)
 	lib /out:ogrsf_frmts_sup.lib \
 				 ..\..\frmts\iso8211\*.obj \
 				 ..\..\frmts\sdts\sdtsattrreader.obj \
@@ -289,7 +307,7 @@ plugindirs:
 clean:
 	-del ogrsf_frmts.lib
 	-del ogrsf_frmts_sup.lib
-	for %d in ( $(DIRLIST) ) do \
+	for %d in ( $(DIRLIST) $(PLUGINDIRLIST) ) do \
 		cd %d \
 		&& $(MAKE) /f makefile.vc clean \
 		&& cd .. \

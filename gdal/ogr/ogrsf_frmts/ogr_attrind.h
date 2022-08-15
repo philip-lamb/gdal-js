@@ -32,6 +32,8 @@
 
 #include "ogrsf_frmts.h"
 
+//! @cond Doxygen_Suppress
+
 /************************************************************************/
 /*                             OGRAttrIndex                             */
 /*                                                                      */
@@ -70,6 +72,7 @@ protected:
     char        *pszIndexPath;
 
                 OGRLayerAttrIndex();
+    CPL_DISALLOW_COPY_ASSIGN(OGRLayerAttrIndex)
 
 public:
     virtual     ~OGRLayerAttrIndex();
@@ -88,6 +91,7 @@ public:
 
 OGRLayerAttrIndex CPL_DLL *OGRCreateDefaultLayerIndex();
 
+//! @endcond
 
 #endif /* ndef OGR_ATTRIND_H_INCLUDED */
 

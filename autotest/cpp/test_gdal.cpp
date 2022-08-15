@@ -1,41 +1,36 @@
 ///////////////////////////////////////////////////////////////////////////////
-// $Id: test_gdal.cpp,v 1.4 2006/12/06 15:39:13 mloskot Exp $
 //
 // Project:  C++ Test Suite for GDAL/OGR
 // Purpose:  Test general GDAL features.
 // Author:   Mateusz Loskot <mateusz@loskot.net>
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2006, Mateusz Loskot <mateusz@loskot.net>
-//  
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Library General Public
 // License as published by the Free Software Foundation; either
 // version 2 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Library General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Library General Public
 // License along with this library; if not, write to the
 // Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 ///////////////////////////////////////////////////////////////////////////////
-//
-//  $Log: test_gdal.cpp,v $
-//  Revision 1.4  2006/12/06 15:39:13  mloskot
-//  Added file header comment and copyright note.
-//
-//
-///////////////////////////////////////////////////////////////////////////////
-#include <tut.h>
-#include <gdal.h>
+
+#include "gdal_unit_test.h"
+
 #include <gdal_priv.h>
 #include <gdal_utils.h>
-#include <string>
+#include <gdal.h>
+
 #include <limits>
+#include <string>
 
 namespace tut
 {
@@ -180,17 +175,31 @@ namespace tut
 
         ensure( GDALAdjustValueToDataType(GDT_Int32,-10000000.0,&bClamped,&bRounded) == -10000000.0 && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Int32,10000000.0,&bClamped,&bRounded) == 10000000.0 && !bClamped && !bRounded);
-        
+
         ensure( GDALAdjustValueToDataType(GDT_Float32, 0.0,&bClamped,&bRounded) == 0.0 && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float32, 1e-50,&bClamped,&bRounded) == 0.0 && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float32, 1.23,&bClamped,&bRounded) == static_cast<double>(1.23f) && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float32, -1e300,&bClamped,&bRounded) == -std::numeric_limits<float>::max() && bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float32, 1e300,&bClamped,&bRounded) == std::numeric_limits<float>::max() && bClamped && !bRounded);
+        ensure( GDALAdjustValueToDataType(GDT_Float32, std::numeric_limits<float>::infinity(),&bClamped,&bRounded) == std::numeric_limits<float>::infinity() && !bClamped && !bRounded);
+        ensure( GDALAdjustValueToDataType(GDT_Float32, -std::numeric_limits<float>::infinity(),&bClamped,&bRounded) == -std::numeric_limits<float>::infinity() && !bClamped && !bRounded);
+        {
+            double dfNan = std::numeric_limits<double>::quiet_NaN();
+            double dfGot = GDALAdjustValueToDataType(GDT_Float32, dfNan,&bClamped,&bRounded);
+            ensure( memcmp(&dfNan, &dfGot, sizeof(double)) == 0 && !bClamped && !bRounded);
+        }
 
         ensure( GDALAdjustValueToDataType(GDT_Float64, 0.0,&bClamped,&bRounded) == 0.0 && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float64, 1e-50,&bClamped,&bRounded) == 1e-50 && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float64, -1e40,&bClamped,&bRounded) == -1e40 && !bClamped && !bRounded);
         ensure( GDALAdjustValueToDataType(GDT_Float64, 1e40,&bClamped,&bRounded) == 1e40 && !bClamped && !bRounded);
+        ensure( GDALAdjustValueToDataType(GDT_Float64, std::numeric_limits<float>::infinity(),&bClamped,&bRounded) == std::numeric_limits<float>::infinity() && !bClamped && !bRounded);
+        ensure( GDALAdjustValueToDataType(GDT_Float64, -std::numeric_limits<float>::infinity(),&bClamped,&bRounded) == -std::numeric_limits<float>::infinity() && !bClamped && !bRounded);
+        {
+            double dfNan = std::numeric_limits<double>::quiet_NaN();
+            double dfGot = GDALAdjustValueToDataType(GDT_Float64, dfNan,&bClamped,&bRounded);
+            ensure( memcmp(&dfNan, &dfGot, sizeof(double)) == 0 && !bClamped && !bRounded);
+        }
     }
 
     class FakeBand: public GDALRasterBand
@@ -222,7 +231,7 @@ namespace tut
 
             static GDALDataset* CreateCopy(const char*, GDALDataset*,
                                     int, char **,
-                                    GDALProgressFunc, 
+                                    GDALProgressFunc,
                                     void *)
             {
                 return new DatasetWithErrorInFlushCache();
@@ -282,4 +291,43 @@ namespace tut
         GetGDALDriverManager()->DeregisterDriver( poDriver );
         delete poDriver;
     }
+
+    // Test that GDALSwapWords() with unaligned buffers
+    template<> template<> void object::test<10>()
+    {
+        GByte abyBuffer[ 8 * 2 + 1 ] = { 0, 1, 2, 3, 4, 5, 6, 7, 255, 7, 6, 5, 4, 3, 2, 1, 0 };
+        GDALSwapWords(abyBuffer, 4, 2, 9 );
+        ensure( abyBuffer[0] == 3 );
+        ensure( abyBuffer[1] == 2 );
+        ensure( abyBuffer[2] == 1 );
+        ensure( abyBuffer[3] == 0 );
+
+        ensure( abyBuffer[9] == 4 );
+        ensure( abyBuffer[10] == 5 );
+        ensure( abyBuffer[11] == 6 );
+        ensure( abyBuffer[12] == 7 );
+        GDALSwapWords(abyBuffer, 4, 2, 9 );
+
+        GDALSwapWords(abyBuffer, 8, 2, 9 );
+        ensure( abyBuffer[0] == 7 );
+        ensure( abyBuffer[1] == 6 );
+        ensure( abyBuffer[2] == 5 );
+        ensure( abyBuffer[3] == 4 );
+        ensure( abyBuffer[4] == 3 );
+        ensure( abyBuffer[5] == 2 );
+        ensure( abyBuffer[6] == 1 );
+        ensure( abyBuffer[7] == 0 );
+
+        ensure( abyBuffer[9] == 0 );
+        ensure( abyBuffer[10] == 1 );
+        ensure( abyBuffer[11] == 2 );
+        ensure( abyBuffer[12] == 3 );
+        ensure( abyBuffer[13] == 4 );
+        ensure( abyBuffer[14] == 5 );
+        ensure( abyBuffer[15] == 6 );
+        ensure( abyBuffer[16] == 7 );
+        GDALSwapWords(abyBuffer, 4, 2, 9 );
+
+    }
+
 } // namespace tut

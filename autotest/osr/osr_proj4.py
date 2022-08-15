@@ -31,6 +31,7 @@
 # DEALINGS IN THE SOFTWARE.
 ###############################################################################
 
+import os
 import sys
 
 sys.path.append( '../pymod' )
@@ -58,13 +59,13 @@ def have_proj480():
         return have_proj480_flag
 
     handle = None
-    for name in ["libproj.so", "proj.dll",  "libproj-0.dll", "libproj-10.dll", "cygproj-10.dll", "libproj.dylib"]:
+    for name in ["libproj.so", "proj.dll", "proj-9.dll", "libproj-0.dll", "libproj-10.dll", "cygproj-10.dll", "libproj.dylib"]:
         try:
             handle = ctypes.cdll.LoadLibrary(name)
         except:
             pass
     if handle is None:
-        print('cannot load libproj.so, proj.dll, libproj-0.dll, libproj-10.dll, cygproj-10.dll or libproj.dylib')
+        print('cannot load libproj.so, proj.dll, proj-9.dll, libproj-0.dll, libproj-10.dll, cygproj-10.dll or libproj.dylib')
         have_proj480_flag = False
         return have_proj480_flag
 
@@ -436,6 +437,7 @@ def osr_proj4_11():
                      '+proj=lcc +lat_1=-10 +lat_2=30 +lat_0=60 +lon_0=2 +x_0=3 +y_0=4',
                      '+proj=lcc +lat_1=-10 +lat_2=30 +lat_0=-10 +lon_0=2 +x_0=3 +y_0=4',
                      '+proj=omerc +lat_0=1 +lonc=2 +alpha=-1 +k=-3 +x_0=3 +y_0=4 +gamma=-2',
+                     '+proj=omerc +lat_0=1 +lon_1=2 +lat_1=3 +lon_2=4 +lat_2=5 +k=-3 +x_0=3 +y_0=4',
                      '+proj=somerc +lat_0=1 +lon_0=2 +k_0=2 +x_0=3 +y_0=4',
                      '+proj=krovak +lat_0=1 +lon_0=2 +alpha=0 +k=2 +x_0=3 +y_0=4',
                      '+proj=iwm_p +lat_1=-2 +lat_2=-1 +lon_0=2 +x_0=3 +y_0=4',
@@ -592,6 +594,17 @@ def osr_proj4_14():
     proj4str = srs.ExportToProj4()
     gdal.SetConfigOption('OSR_USE_ETMERC', None)
     expect_proj4str = '+proj=etmerc +lat_0=0 +lon_0=9 +k=0.9996 +x_0=500000 +y_0=0 +datum=WGS84 +units=m +no_defs '
+    if proj4str != expect_proj4str:
+        print('Got:%s' % proj4str)
+        print('Expected:%s' % expect_proj4str)
+        gdaltest.post_reason( 'Did not get expected result.' )
+        return 'fail'
+
+    # Test exporting standard Transverse_Mercator, with OSR_USE_ETMERC=NO
+    gdal.SetConfigOption('OSR_USE_ETMERC', 'NO')
+    proj4str = srs.ExportToProj4()
+    gdal.SetConfigOption('OSR_USE_ETMERC', None)
+    expect_proj4str = '+proj=tmerc +lat_0=0 +lon_0=9 +k=0.9996 +x_0=500000 +y_0=0 +datum=WGS84 +units=m +no_defs '
     if proj4str != expect_proj4str:
         print('Got:%s' % proj4str)
         print('Expected:%s' % expect_proj4str)
@@ -977,6 +990,34 @@ def osr_proj4_27():
 
     return 'success'
 
+###############################################################################
+# Test importing +init=epsg: with an override
+
+def osr_proj4_28():
+
+    srs = osr.SpatialReference()
+    srs.ImportFromProj4( "+init=epsg:32631 +units=cm" )
+    got = srs.ExportToWkt()
+
+    if got.find('32631') >= 0:
+        gdaltest.post_reason( 'fail' )
+        print(got)
+        return 'fail'
+
+    return 'success'
+
+def osr_proj4_28_missing_proj_epsg_dict():
+
+    python_exe = sys.executable
+    if sys.platform == 'win32':
+        python_exe = python_exe.replace('\\', '/')
+
+    ret = gdaltest.runexternal(python_exe + ' osr_proj4.py osr_proj4_28')
+    if ret.find('fail') >= 0:
+        print(ret)
+        return 'fail'
+    return 'success'
+
 gdaltest_list = [
     osr_proj4_1,
     osr_proj4_2,
@@ -1004,10 +1045,18 @@ gdaltest_list = [
     osr_proj4_24,
     osr_proj4_25,
     osr_proj4_26,
-    osr_proj4_27 ]
+    osr_proj4_27,
+    osr_proj4_28,
+    osr_proj4_28_missing_proj_epsg_dict
+]
 
 
 if __name__ == '__main__':
+
+    if len(sys.argv) == 2 and sys.argv[1] == "osr_proj4_28":
+        os.putenv('PROJ_LIB', '/i/dont_exist')
+        gdaltest.run_tests( [ osr_proj4_28 ] )
+        sys.exit(0)
 
     gdaltest.setup_run( 'osr_proj4' )
 

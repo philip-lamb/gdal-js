@@ -10,7 +10,7 @@
 	static double
 RES = 1000.,
 RES60 = 60000.,
-CONV = 206264806.24709635516;
+CONV = 206264806.24709635515796003417;
 	static char
 format[50] = "%dd%d'%.3f\"%c";
 	static int
@@ -25,7 +25,7 @@ set_rtodms(int fract, int con_w) {
 		for (i = 0; i < fract; ++i)
 			RES *= 10.;
 		RES60 = RES * 60.;
-		CONV = 180. * 3600. * RES / M_PI;
+		CONV = 180. * 3600. * RES / PI;
 		if (! con_w)
 			(void)sprintf(format,"%%dd%%d'%%.%df\"%%c", fract);
 		else

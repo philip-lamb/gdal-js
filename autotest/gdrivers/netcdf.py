@@ -34,6 +34,7 @@
 import os
 import sys
 import shutil
+import struct
 from osgeo import gdal
 from osgeo import ogr
 from osgeo import osr
@@ -57,7 +58,7 @@ def netcdf_setup():
     gdaltest.netcdf_drv_has_nc2 = False
     gdaltest.netcdf_drv_has_nc4 = False
     gdaltest.netcdf_drv_has_hdf4 = False
-    gdaltest.netcdf_drv_silent = False;
+    gdaltest.netcdf_drv_silent = False
 
     gdaltest.netcdf_drv = gdal.GetDriverByName( 'NETCDF' )
 
@@ -75,7 +76,7 @@ def netcdf_setup():
     #netcdf library version 4.1.1 of Mar  4 2011 12:52:19 $
     if 'NETCDF_VERSION' in metadata:
         v = metadata['NETCDF_VERSION']
-        v = v[ 0 : v.find(' ') ].strip('"');
+        v = v[ 0 : v.find(' ') ].strip('"')
         gdaltest.netcdf_drv_version = v
 
     if 'NETCDF_HAS_NC2' in metadata \
@@ -554,7 +555,7 @@ def netcdf_12():
 
     ds = gdal.Open( 'data/scale_offset.nc' )
 
-    scale = ds.GetRasterBand( 1 ).GetScale();
+    scale = ds.GetRasterBand( 1 ).GetScale()
     offset = ds.GetRasterBand( 1 ).GetOffset()
 
     if scale != 0.01 or offset != 1.5:
@@ -574,7 +575,7 @@ def netcdf_13():
 
     ds = gdal.Open( 'data/no_scale_offset.nc' )
 
-    scale = ds.GetRasterBand( 1 ).GetScale();
+    scale = ds.GetRasterBand( 1 ).GetScale()
     offset = ds.GetRasterBand( 1 ).GetOffset()
 
     if scale != None or offset != None:
@@ -594,7 +595,7 @@ def netcdf_14():
 
     ds = gdal.Open( 'NETCDF:data/two_vars_scale_offset.nc:z' )
 
-    scale = ds.GetRasterBand( 1 ).GetScale();
+    scale = ds.GetRasterBand( 1 ).GetScale()
     offset = ds.GetRasterBand( 1 ).GetOffset()
 
     if scale != 0.01 or offset != 1.5:
@@ -605,10 +606,10 @@ def netcdf_14():
 
     ds = gdal.Open( 'NETCDF:data/two_vars_scale_offset.nc:q' )
 
-    scale = ds.GetRasterBand( 1 ).GetScale();
+    scale = ds.GetRasterBand( 1 ).GetScale()
     offset = ds.GetRasterBand( 1 ).GetOffset()
 
-    scale = ds.GetRasterBand( 1 ).GetScale();
+    scale = ds.GetRasterBand( 1 ).GetScale()
     offset = ds.GetRasterBand( 1 ).GetOffset()
 
     if scale != 0.1 or offset != 2.5:
@@ -2347,7 +2348,7 @@ def netcdf_59():
     # get
     ds = gdal.Open( 'data/unittype.nc' )
 
-    unit = ds.GetRasterBand( 1 ).GetUnitType();
+    unit = ds.GetRasterBand( 1 ).GetUnitType()
 
     if unit != 'm/s':
         gdaltest.post_reason( 'Incorrect unit(%s)' % unit )
@@ -2816,6 +2817,154 @@ def netcdf_67():
 
     return result
 
+
+###############################################################################
+# Test reading SRS from srid attribute (#6613)
+
+def netcdf_68():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    ds = gdal.Open('data/srid.nc')
+    wkt = ds.GetProjectionRef()
+    if wkt.find('6933') < 0:
+        gdaltest.post_reason('failure')
+        print(wkt)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test opening a dataset with a 1D variable with 0 record (#6645)
+
+def netcdf_69():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    ds = gdal.Open('data/test6645.nc')
+    if ds is None:
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test that we don't erroneously identify non-longitude axis as longitude (#6759)
+
+def netcdf_70():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    ds = gdal.Open('data/test6759.nc')
+    gt = ds.GetGeoTransform()
+    expected_gt = [304250.0, 250.0, 0.0, 4952500.0, 0.0, -250.0]
+    if max(abs(gt[i] - expected_gt[i]) for i in range(6)) > 1e-3:
+        print(gt)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test that we take into account x and y offset and scaling
+# (https://github.com/OSGeo/gdal/pull/200)
+
+def netcdf_71():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    ds = gdal.Open('data/test_coord_scale_offset.nc')
+    gt = ds.GetGeoTransform()
+    expected_gt = (-690769.999174516, 1015.8812500000931, 0.0, 2040932.1838741193, 0.0, 1015.8812499996275)
+    if max(abs(gt[i] - expected_gt[i]) for i in range(6)) > 1e-3:
+        print(gt)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# test int64 attributes / dim
+
+def netcdf_72():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    if not gdaltest.netcdf_drv_has_nc4:
+        return 'skip'
+
+    ds = gdal.Open('data/int64dim.nc')
+    mdi = ds.GetRasterBand(1).GetMetadataItem('NETCDF_DIM_TIME')
+    if mdi != '123456789012':
+        print(mdi)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# test we handle correctly valid_range={0,255} for a byte dataset with
+# negative nodata value
+
+def netcdf_78():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    ds = gdal.Open('data/byte_with_valid_range.nc')
+    if ds.GetRasterBand(1).GetNoDataValue() != 240:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    data = ds.GetRasterBand(1).ReadRaster()
+    data = struct.unpack('B' * 4, data)
+    if data != (128, 129, 126, 127):
+        gdaltest.post_reason('fail')
+        print(data)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# netCDF file with extra dimensions that are oddly indexed (1D variable
+# corresponding to the dimension but with a differentn ame, no corresponding
+# 1D variable, several corresponding variables)
+
+def netcdf_82():
+
+    if gdaltest.netcdf_drv is None:
+        return 'skip'
+
+    with gdaltest.error_handler():
+        ds = gdal.Open('data/oddly_indexed_extra_dims.nc')
+    md = ds.GetMetadata()
+    expected_md = {
+        'NETCDF_DIM_extra_dim_with_var_of_different_name_VALUES': '{100,200}',
+        'NETCDF_DIM_EXTRA': '{extra_dim_with_several_variables,extra_dim_without_variable,extra_dim_with_var_of_different_name}',
+        'x#standard_name': 'projection_x_coordinate',
+        'NC_GLOBAL#Conventions': 'CF-1.5',
+        'y#standard_name': 'projection_y_coordinate',
+        'NETCDF_DIM_extra_dim_with_var_of_different_name_DEF': '{2,6}'
+    }
+    if md != expected_md:
+        gdaltest.post_reason('Did not get expected metadata')
+        print(md)
+        return 'fail'
+
+    md = ds.GetRasterBand(1).GetMetadata()
+    expected_md = {
+        'NETCDF_DIM_extra_dim_with_several_variables': '1',
+        'NETCDF_DIM_extra_dim_with_var_of_different_name': '100',
+        'NETCDF_DIM_extra_dim_without_variable': '1',
+        'NETCDF_VARNAME': 'data'
+    }
+    if md != expected_md:
+        gdaltest.post_reason('Did not get expected metadata')
+        print(md)
+        return 'fail'
+
+    return 'success'
+
 ###############################################################################
 
 ###############################################################################
@@ -2893,7 +3042,14 @@ gdaltest_list = [
     netcdf_65,
     netcdf_66,
     netcdf_66_ncdump_check,
-    netcdf_67
+    netcdf_67,
+    netcdf_68,
+    netcdf_69,
+    netcdf_70,
+    netcdf_71,
+    netcdf_72,
+    netcdf_78,
+    netcdf_82
 ]
 
 ###############################################################################
@@ -2918,6 +3074,8 @@ gdaltest_list.append( (ut.testSetProjection, item[0]) )
 
 #SetMetadata() not supported
 #gdaltest_list.append( (ut.testSetMetadata, item[0]) )
+
+# gdaltest_list = [ netcdf_1, netcdf_82 ]
 
 # Others we do for each pixel type.
 for item in init_list:

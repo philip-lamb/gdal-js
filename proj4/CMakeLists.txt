@@ -31,9 +31,9 @@ colormsg(_HIBLUE_ "Configuring PROJ:")
 #PROJ version information
 #################################################################################
 include(Proj4Version)
-proj_version(MAJOR 4 MINOR 9 PATCH 3)
-set(PROJ_API_VERSION "12")
-set(PROJ_BUILD_VERSION "12.0.0")
+proj_version(MAJOR 4 MINOR 9 PATCH 2)
+set(PROJ_API_VERSION "9")
+set(PROJ_BUILD_VERSION "10.0.1")
 
 #################################################################################
 # Build features and variants
@@ -42,15 +42,6 @@ include(Proj4SystemInfo)
 include(Proj4Config)
 include(Proj4Mac)
 include(policies)
-
-#################################################################################
-# Self-test build config
-#################################################################################
-
-option(SELFTEST "Include self-test in build" OFF)
-if(SELFTEST)
-    add_definitions(-DPJ_SELFTEST)
-endif(SELFTEST)
 
 #################################################################################
 # threading configuration

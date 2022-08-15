@@ -84,11 +84,11 @@ class GDALWMSMetaDataset : public GDALPamDataset
                                      CPLString osFormat,
                                      CPLString osTransparent,
                                      CPLString osPreferredSRS,
-                                     const char* pszSRS = NULL,
-                                     const char* pszMinX = NULL,
-                                     const char* pszMinY = NULL,
-                                     const char* pszMaxX = NULL,
-                                     const char* pszMaxY = NULL);
+                                     const char* pszSRS = nullptr,
+                                     const char* pszMinX = nullptr,
+                                     const char* pszMinY = nullptr,
+                                     const char* pszMaxX = nullptr,
+                                     const char* pszMaxY = nullptr);
 
     void                AddTiledSubDataset(const char* pszTiledGroupName,
                                            const char* pszTitle);
@@ -103,10 +103,10 @@ class GDALWMSMetaDataset : public GDALPamDataset
 
   public:
         GDALWMSMetaDataset();
-       ~GDALWMSMetaDataset();
+    virtual ~GDALWMSMetaDataset();
 
-    virtual char      **GetMetadataDomainList();
-    virtual char      **GetMetadata( const char * pszDomain = "" );
+    virtual char      **GetMetadataDomainList() override;
+    virtual char      **GetMetadata( const char * pszDomain = "" ) override;
 
     static GDALDataset* AnalyzeGetCapabilities(CPLXMLNode* psXML,
                                                CPLString osFormat = "",

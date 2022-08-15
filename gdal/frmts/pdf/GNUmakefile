@@ -6,29 +6,12 @@ PLUGIN_DL =	gdal_PDF.so
 
 ifeq ($(MACOSX_FRAMEWORK),yes)
 PLUGIN_DL = gdal_PDF.dylib
-LDFLAGS += -Wl,-undefined -Wl,dynamic_lookup -stdlib=libstdc++
-CPPFLAGS += -stdlib=libstdc++
+LDFLAGS += -Wl,-undefined -Wl,dynamic_lookup
 LD_SHARED = $(LD) -bundle
 endif
 
 ifeq ($(HAVE_POPPLER),yes)
-CPPFLAGS +=  -DHAVE_POPPLER
-endif
-
-ifeq ($(POPPLER_HAS_OPTCONTENT),yes)
-CPPFLAGS +=  -DPOPPLER_HAS_OPTCONTENT
-endif
-
-ifeq ($(POPPLER_BASE_STREAM_HAS_TWO_ARGS),yes)
-CPPFLAGS +=  -DPOPPLER_BASE_STREAM_HAS_TWO_ARGS
-endif
-
-ifeq ($(POPPLER_0_20_OR_LATER),yes)
-CPPFLAGS +=  -DPOPPLER_0_20_OR_LATER
-endif
-
-ifeq ($(POPPLER_0_23_OR_LATER),yes)
-CPPFLAGS +=  -DPOPPLER_0_23_OR_LATER
+CPPFLAGS +=  -DHAVE_POPPLER -DPOPPLER_MAJOR_VERSION=$(POPPLER_MAJOR_VERSION) -DPOPPLER_MINOR_VERSION=$(POPPLER_MINOR_VERSION)
 endif
 
 ifeq ($(HAVE_PODOFO),yes)
@@ -37,11 +20,17 @@ endif
 
 ifeq ($(HAVE_PDFIUM),yes)
 CPPFLAGS +=  -DHAVE_PDFIUM
+# -Wzero-as-null-pointer-constant  isn't compatible of pdfium headers
+# /home/even/pdfium/install/include/pdfium/third_party/base/numerics/safe_conversions.h: In instantiation of ‘Dst pdfium::base::checked_cast(Src) [with Dst = int; Src = long unsigned int]’:
+# /home/even/pdfium/install/include/pdfium/core/include/fxcrt/fx_string.h:43:26:   required from here
+# /home/even/pdfium/install/include/pdfium/third_party/base/numerics/safe_conversions.h:29:3: erreur: invalid cast from type ‘std::nullptr_t’ to type ‘volatile char*’
+#    CHECK(IsValueInRangeForNumericType<Dst>(value));
+CXX := $(subst -Wzero-as-null-pointer-constant,,${CXX})
 endif
 
 $(O_OBJ):       pdfobject.h pdfio.h pdfcreatecopy.h gdal_pdf.h ../../ogr/ogrsf_frmts/mem/ogr_mem.h
 
-CPPFLAGS	:=	 -I../vrt -I../mem -I../../ogr/ogrsf_frmts/mem $(CPPFLAGS) $(POPPLER_INC) $(PODOFO_INC) $(PDFIUM_INC)
+CPPFLAGS	:=	 -I../vrt -I../mem -I../../ogr/ogrsf_frmts/mem $(CPPFLAGS) $(POPPLER_INC) $(PODOFO_INC) $(PDFIUM_INC) -DDO_NOT_USE_DEBUG_BOOL
 
 default:	$(OBJ:.o=.$(OBJ_EXT))
 

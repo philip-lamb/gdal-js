@@ -494,7 +494,7 @@ Error""")
             "fields":{"st_extent":{"type":"string"}}}""")
 
     f = lyr.GetFeature(0)
-    if f.GetFID() != -1 or f.IsFieldSet(0):
+    if f.GetFID() != -1 or not f.IsFieldNull(0):
         gdaltest.post_reason('fail')
         return 'fail'
 
@@ -829,7 +829,11 @@ Error""")
     gdal.SetConfigOption('CARTO_MAX_CHUNK_SIZE', None)
     ds = ogr.Open('CARTO:foo', update = 1)
     lyr = ds.GetLayer(0)
-    gdal.FileFromMemBuffer("""/vsimem/carto&POSTFIELDS=q=SELECT nextval('table1_cartodb_id_seq') AS nextid&api_key=foo""",
+
+    gdal.FileFromMemBuffer("""/vsimem/carto&POSTFIELDS=q=SELECT pg_catalog.pg_get_serial_sequence('table1', 'cartodb_id') AS seq_name&api_key=foo""",
+        """{"rows":[{"seq_name":"table1_cartodb_id_seq0"}],"fields":{"seq_name":{"type":"string"}}}""")
+
+    gdal.FileFromMemBuffer("""/vsimem/carto&POSTFIELDS=q=SELECT nextval('table1_cartodb_id_seq0') AS nextid&api_key=foo""",
         """{"rows":[{"nextid":11}],"fields":{"nextid":{"type":"number"}}}""")
 
     f = ogr.Feature(lyr.GetLayerDefn())
@@ -846,6 +850,20 @@ Error""")
             "fields":{}}""")
     ret = lyr.CreateFeature(f)
     if ret != 0 or f.GetFID() != 12:
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+
+
+    gdal.FileFromMemBuffer("""/vsimem/carto&POSTFIELDS=q=BEGIN;INSERT INTO "table1" ("strfield", "cartodb_id") VALUES (NULL, 11);COMMIT;&api_key=foo""",
+        """{"rows":[],
+            "fields":{}}""")
+    ds = ogr.Open('CARTO:foo', update = 1)
+    lyr = ds.GetLayer(0)
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetFieldNull('strfield')
+    ret = lyr.CreateFeature(f)
+    if ret != 0 or f.GetFID() != 11:
         gdaltest.post_reason('fail')
         f.DumpReadable()
         return 'fail'

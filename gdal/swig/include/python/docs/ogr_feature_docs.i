@@ -1,14 +1,11 @@
 %extend OGRFeatureShadow {
 // File: ogrfeature_8cpp.xml
-%feature("docstring")  CPL_CVSID "CPL_CVSID(\"$Id: ogrfeature.cpp
-33440 2016-02-12 12:02:43Z ajolma $\") ";
-
 %feature("docstring")  Create "OGRFeatureH
 OGR_F_Create(OGRFeatureDefnH hDefn)
 
 Feature factory.
 
-Note that the OGRFeature will increment the reference count of it's
+Note that the OGRFeature will increment the reference count of its
 defining OGRFeatureDefn. Destruction of the OGRFeatureDefn before
 destruction of all OGRFeatures that depend on it is likely to result
 in a crash.
@@ -69,6 +66,12 @@ passed geometry (even in case of failure of that function).
 This function is the same as the C++ method
 OGRFeature::SetGeometryDirectly.
 
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
+
 Parameters:
 -----------
 
@@ -90,6 +93,12 @@ SetGeometryDirectly(), except that this function does not assume
 ownership of the passed geometry, but instead makes a copy of it.
 
 This function is the same as the C++ OGRFeature::SetGeometry().
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -121,8 +130,9 @@ OGR_F_GetGeometryRef(OGRFeatureH hFeat)
 
 Fetch an handle to feature geometry.
 
-This function is the same as the C++ method
-OGRFeature::GetGeometryRef().
+This function is essentially the same as the C++ method
+OGRFeature::GetGeometryRef() (the only difference is that this C
+function honours OGRGetNonLinearGeometriesEnabledFlag())
 
 Parameters:
 -----------
@@ -209,7 +219,7 @@ hFeat)
 
 Duplicate feature.
 
-The newly created feature is owned by the caller, and will have it's
+The newly created feature is owned by the caller, and will have its
 own reference to the OGRFeatureDefn.
 
 This function is the same as the C++ method OGRFeature::Clone().
@@ -363,6 +373,60 @@ Parameters:
 hFeat:  handle to the feature on which the field is.
 
 iField:  the field to unset. ";
+
+%feature("docstring")  IsFieldNull "int OGR_F_IsFieldNull(OGRFeatureH
+hFeat, int iField)
+
+Test if a field is null.
+
+This function is the same as the C++ method OGRFeature::IsFieldNull().
+
+Parameters:
+-----------
+
+hFeat:  handle to the feature on which the field is.
+
+iField:  the field to test.
+
+TRUE if the field is null, otherwise false.
+
+GDAL 2.2 ";
+
+%feature("docstring")  IsFieldSetAndNotNull "int
+OGR_F_IsFieldSetAndNotNull(OGRFeatureH hFeat, int iField)
+
+Test if a field is set and not null.
+
+This function is the same as the C++ method
+OGRFeature::IsFieldSetAndNotNull().
+
+Parameters:
+-----------
+
+hFeat:  handle to the feature on which the field is.
+
+iField:  the field to test.
+
+TRUE if the field is set and not null, otherwise false.
+
+GDAL 2.2 ";
+
+%feature("docstring")  SetFieldNull "void
+OGR_F_SetFieldNull(OGRFeatureH hFeat, int iField)
+
+Clear a field, marking it as null.
+
+This function is the same as the C++ method
+OGRFeature::SetFieldNull().
+
+Parameters:
+-----------
+
+hFeat:  handle to the feature on which the field is.
+
+iField:  the field to set to null.
+
+GDAL 2.2 ";
 
 %feature("docstring")  GetRawFieldRef "OGRField*
 OGR_F_GetRawFieldRef(OGRFeatureH hFeat, int iField)
@@ -688,6 +752,12 @@ on this field. Other field types may be unaffected.
 
 This function is the same as the C++ method OGRFeature::SetField().
 
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
+
 Parameters:
 -----------
 
@@ -708,6 +778,12 @@ value, but not necessarily taking into account formatting constraints
 on this field. Other field types may be unaffected.
 
 This function is the same as the C++ method OGRFeature::SetField().
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -732,6 +808,12 @@ on this field. Other field types may be unaffected.
 
 This function is the same as the C++ method OGRFeature::SetField().
 
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
+
 Parameters:
 -----------
 
@@ -755,6 +837,12 @@ unaffected.
 
 This function is the same as the C++ method OGRFeature::SetField().
 
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
+
 Parameters:
 -----------
 
@@ -766,7 +854,7 @@ pszValue:  the value to assign. ";
 
 %feature("docstring")  SetFieldIntegerList "void
 OGR_F_SetFieldIntegerList(OGRFeatureH hFeat, int iField, int nCount,
-int *panValues)
+const int *panValues)
 
 Set field to list of integers value.
 
@@ -774,6 +862,12 @@ This function currently on has an effect of OFTIntegerList,
 OFTInteger64List and OFTRealList fields.
 
 This function is the same as the C++ method OGRFeature::SetField().
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -797,6 +891,12 @@ OFTInteger64List and OFTRealList fields.
 
 This function is the same as the C++ method OGRFeature::SetField().
 
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
+
 Parameters:
 -----------
 
@@ -812,7 +912,7 @@ GDAL 2.0 ";
 
 %feature("docstring")  SetFieldDoubleList "void
 OGR_F_SetFieldDoubleList(OGRFeatureH hFeat, int iField, int nCount,
-double *padfValues)
+const double *padfValues)
 
 Set field to list of doubles value.
 
@@ -820,6 +920,12 @@ This function currently on has an effect of OFTIntegerList,
 OFTInteger64List, OFTRealList fields.
 
 This function is the same as the C++ method OGRFeature::SetField().
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -833,14 +939,20 @@ nCount:  the number of values in the list being assigned.
 padfValues:  the values to assign. ";
 
 %feature("docstring")  SetFieldStringList "void
-OGR_F_SetFieldStringList(OGRFeatureH hFeat, int iField, char
-**papszValues)
+OGR_F_SetFieldStringList(OGRFeatureH hFeat, int iField, CSLConstList
+papszValues)
 
 Set field to list of strings value.
 
 This function currently on has an effect of OFTStringList fields.
 
 This function is the same as the C++ method OGRFeature::SetField().
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -861,6 +973,12 @@ This function currently on has an effect of OFTBinary fields.
 
 This function is the same as the C++ method OGRFeature::SetField().
 
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
+
 Parameters:
 -----------
 
@@ -880,6 +998,12 @@ Set field to datetime.
 
 This method currently only has an effect for OFTDate, OFTTime and
 OFTDateTime fields.
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -914,6 +1038,12 @@ Set field to datetime.
 
 This method currently only has an effect for OFTDate, OFTTime and
 OFTDateTime fields.
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -950,6 +1080,12 @@ copied, and will not be affected. It remains the responsibility of the
 caller.
 
 This function is the same as the C++ method OGRFeature::SetField().
+
+This method has only an effect on the in-memory feature object. If
+this object comes from a layer and the modifications must be
+serialized back to the datasource, OGR_L_SetFeature() must be used
+afterwards. Or if this is a new feature, OGR_L_CreateFeature() must be
+used afterwards.
 
 Parameters:
 -----------
@@ -1066,7 +1202,7 @@ transferred, otherwise an error code. ";
 
 %feature("docstring")  SetFromWithMap "OGRErr
 OGR_F_SetFromWithMap(OGRFeatureH hFeat, OGRFeatureH hOtherFeat, int
-bForgiving, int *panMap)
+bForgiving, const int *panMap)
 
 Set one feature from another.
 
@@ -1161,14 +1297,20 @@ pszStyle:  the style string to apply to this feature, cannot be NULL.
 ";
 
 %feature("docstring")  GetStyleTable "OGRStyleTableH
-OGR_F_GetStyleTable(OGRFeatureH hFeat) ";
+OGR_F_GetStyleTable(OGRFeatureH hFeat)
+
+Return style table. ";
 
 %feature("docstring")  SetStyleTableDirectly "void
 OGR_F_SetStyleTableDirectly(OGRFeatureH hFeat, OGRStyleTableH
-hStyleTable) ";
+hStyleTable)
+
+Set style table and take ownership. ";
 
 %feature("docstring")  SetStyleTable "void
-OGR_F_SetStyleTable(OGRFeatureH hFeat, OGRStyleTableH hStyleTable) ";
+OGR_F_SetStyleTable(OGRFeatureH hFeat, OGRStyleTableH hStyleTable)
+
+Set style table. ";
 
 %feature("docstring")  FillUnsetWithDefault "void
 OGR_F_FillUnsetWithDefault(OGRFeatureH hFeat, int bNotNullableOnly,
@@ -1337,5 +1479,71 @@ GDAL 2.1
 See:
 https://trac.osgeo.org/gdal/wiki/rfc60_improved_roundtripping_in_ogr
 ";
+
+%feature("docstring")  OGR_RawField_IsUnset "int
+OGR_RawField_IsUnset(const OGRField *puField)
+
+Returns whether a raw field is unset.
+
+Note: this function is rather low-level and should be rarely used in
+client code. Use instead OGR_F_IsFieldSet().
+
+Parameters:
+-----------
+
+puField:  pointer to raw field.
+
+GDAL 2.2 ";
+
+%feature("docstring")  OGR_RawField_IsNull "int
+OGR_RawField_IsNull(const OGRField *puField)
+
+Returns whether a raw field is null.
+
+Note: this function is rather low-level and should be rarely used in
+client code. Use instead OGR_F_IsFieldNull().
+
+Parameters:
+-----------
+
+puField:  pointer to raw field.
+
+GDAL 2.2 ";
+
+%feature("docstring")  OGR_RawField_SetUnset "void
+OGR_RawField_SetUnset(OGRField *puField)
+
+Mark a raw field as unset.
+
+This should be called on a un-initialized field. In particular this
+will not free any memory dynamically allocated.
+
+Note: this function is rather low-level and should be rarely used in
+client code. Use instead OGR_F_UnsetField().
+
+Parameters:
+-----------
+
+puField:  pointer to raw field.
+
+GDAL 2.2 ";
+
+%feature("docstring")  OGR_RawField_SetNull "void
+OGR_RawField_SetNull(OGRField *puField)
+
+Mark a raw field as null.
+
+This should be called on a un-initialized field. In particular this
+will not free any memory dynamically allocated.
+
+Note: this function is rather low-level and should be rarely used in
+client code. Use instead OGR_F_SetFieldNull().
+
+Parameters:
+-----------
+
+puField:  pointer to raw field.
+
+GDAL 2.2 ";
 
 }

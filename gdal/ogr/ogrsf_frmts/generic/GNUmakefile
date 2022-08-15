@@ -11,6 +11,8 @@ OBJ	=	ogrsfdriverregistrar.o ogrlayer.o ogrdatasource.o \
 
 CXXFLAGS :=     $(CXXFLAGS) $(SHADOW_WFLAGS) -DINST_DATA=\"$(INST_DATA)\"
 
+CXXFLAGS        :=      $(WARN_EFFCPLUSPLUS) $(WARN_OLD_STYLE_CAST) $(CXXFLAGS)
+
 BASEFORMATS = \
 	-DAVCBIN_ENABLED \
 	-DBNA_ENABLED \
@@ -53,7 +55,8 @@ BASEFORMATS = \
 	-DWASP_ENABLED \
 	-DSELAFIN_ENABLED \
 	-DJML_ENABLED \
-	-DVDV_ENABLED
+	-DVDV_ENABLED \
+	-DMVT_ENABLED
 
 CXXFLAGS :=     $(CXXFLAGS) $(BASEFORMATS)
 
@@ -125,6 +128,10 @@ ifeq ($(HAVE_XERCES),yes)
 CXXFLAGS :=	$(CXXFLAGS) -DILI_ENABLED
 endif
 
+ifeq ($(HAVE_XERCES),yes)
+CXXFLAGS :=	$(CXXFLAGS) -DGMLAS_ENABLED
+endif
+
 ifeq ($(HAVE_NAS),yes)
 CXXFLAGS :=	$(CXXFLAGS) -DNAS_ENABLED
 endif
@@ -133,8 +140,8 @@ ifeq ($(HAVE_LIBKML),yes)
 CXXFLAGS :=	$(CXXFLAGS) -DLIBKML_ENABLED
 endif
 
-ifeq ($(HAVE_DWGDIRECT),yes)
-CXXFLAGS :=	$(CXXFLAGS) -DDWGDIRECT_ENABLED
+ifeq ($(HAVE_TEIGHA),yes)
+CXXFLAGS :=	$(CXXFLAGS) -DDWG_ENABLED -DDGNV8_ENABLED
 endif
 
 ifeq ($(HAVE_IDB),yes)
@@ -179,7 +186,7 @@ CXXFLAGS :=	$(CXXFLAGS) -DCLOUDANT_ENABLED
 endif
 
 ifeq ($(HAVE_FREEXL),yes)
-CXXFLAGS :=	$(CXXFLAGS) -DFREEXL_ENABLED
+CXXFLAGS :=	$(CXXFLAGS) -DXLS_ENABLED
 endif
 
 ifeq ($(HAVE_EXPAT),yes)
@@ -218,6 +225,14 @@ ifeq ($(HAVE_MONGODB),yes)
 CXXFLAGS :=	$(CXXFLAGS) -DMONGODB_ENABLED
 endif
 
+ifeq ($(HAVE_CAD),yes)
+CXXFLAGS :=	$(CXXFLAGS) -DCAD_ENABLED
+endif
+
+ifeq ($(CURL_SETTING),yes)
+CXXFLAGS :=	$(CXXFLAGS) -DNGW_ENABLED
+endif
+
 CPPFLAGS	:=	-I.. -I../..  $(CPPFLAGS)
 
 default:	$(O_OBJ:.o=.$(OBJ_EXT))
@@ -226,4 +241,3 @@ clean:
 	rm -f *.o $(O_OBJ)
 
 $(O_OBJ):	../../../GDALmake.opt ../../swq.h
-

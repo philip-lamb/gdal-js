@@ -23,7 +23,8 @@
 
   <p>
     Note that if you build and include this LIBKML driver, it will become the
-    default reader of KML for ogr, overriding the previous KML driver. You can
+    default reader of KML for ogr, overriding the previous 
+    <a href="drv_kml.html">KML driver </a>. You can
     still specify either KML or LIBKML as the output driver via the command line
   </p>
 
@@ -91,6 +92,9 @@
     The value must follow the syntax of <a href="http://tools.ietf.org/html/rfc3966">IETF RFC 3966</a>.
   </p>
 
+  <p>Starting with GDAL 2.2, the DOCUMENT_ID datasource creation option can be
+  used to specified the id of the root &lt;Document&gt; node. The default value
+  is root_doc.</p>
 
     <h4>Container properties</h4>
 
@@ -782,7 +786,6 @@ Writing to /dev/stdout or /vsistdout/ is also supported.<p>
 
 #!/bin/bash
 # Copyright (c) 2010, Brian Case
- * Copyright (c) 2010-2014, Even Rouault <even dot rouault at mines-paris dot org>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),

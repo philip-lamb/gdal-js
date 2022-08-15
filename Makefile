@@ -5,8 +5,11 @@ EMCC ?= emcc
 EMCONFIGURE ?= emconfigure
 EMCONFIGURE_JS ?= 0
 GDAL_EMCC_CFLAGS := -O3
-PROJ_EMCC_CFLAGS := -O3
+# -fPIC allows PROJ4 to be linked successfully when using MAIN_MODULE=2 in GDAL
+PROJ_EMCC_CFLAGS := -O3 -fPIC
 EXPORTED_FUNCTIONS = "[\
+  '_malloc',\
+  '_free',\
   '_CSLCount',\
   '_GDALSetCacheMax',\
   '_GDALAllRegister',\
@@ -63,7 +66,58 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALRasterizeOptionsFree',\
   '_GDALDEMProcessing',\
   '_GDALDEMProcessingOptionsNew',\
-  '_GDALDEMProcessingOptionsFree'\
+  '_GDALDEMProcessingOptionsFree',\
+  '_GDALDatasetGetLayer',\
+  '_GDALDatasetGetLayerByName',\
+  '_GDALDatasetGetLayerCount',\
+  '_GDALDatasetExecuteSQL',\
+  '_OGR_L_GetNextFeature',\
+  '_OGR_L_GetExtent',\
+  '_OGR_L_GetLayerDefn',\
+  '_OGR_L_ResetReading',\
+  '_OGR_L_GetName',\
+  '_OGR_F_GetFieldAsInteger',\
+  '_OGR_F_GetFieldAsInteger64',\
+  '_OGR_F_GetFieldAsDouble',\
+  '_OGR_F_GetFieldAsString',\
+  '_OGR_F_GetFieldAsBinary',\
+  '_OGR_F_GetFieldAsDateTime',\
+  '_OGR_F_GetFieldAsDateTimeEx',\
+  '_OGR_F_GetFieldAsDoubleList',\
+  '_OGR_F_GetFieldAsIntegerList',\
+  '_OGR_F_GetFieldAsInteger64List',\
+  '_OGR_F_GetFieldAsStringList',\
+  '_OGR_F_GetGeometryRef',\
+  '_OGR_F_Destroy',\
+  '_OGR_FD_GetFieldCount',\
+  '_OGR_FD_GetFieldDefn',\
+  '_OGR_Fld_GetType',\
+  '_OGR_Fld_GetNameRef',\
+  '_OGR_G_GetGeometryType',\
+  '_OGR_G_GetX',\
+  '_OGR_G_GetY',\
+  '_OGR_G_GetPoint',\
+  '_OGR_G_GetPoints',\
+  '_OGR_G_GetPointCount',\
+  '_OGR_G_GetEnvelope',\
+  '_OGR_G_GetSpatialReference',\
+  '_OGR_G_Intersects',\
+  '_OGR_G_Simplify',\
+  '_OGR_G_Set3D',\
+  '_OGR_G_SetMeasured',\
+  '_OGR_G_Touches',\
+  '_OGR_G_Transform',\
+  '_OGR_G_Within',\
+  '_OGR_G_ExportToGML',\
+  '_OGR_G_ExportToJson',\
+  '_OGR_G_ExportToJsonEx',\
+  '_OGR_G_ExportToKML',\
+  '_OGR_G_ExportToWkb',\
+  '_OGR_G_ExportToWkt',\
+  '_GDALVectorTranslate',\
+  '_GDALVectorTranslateOptionsFree',\
+  '_GDALVectorTranslateOptionsNew',\
+  '_GDALVectorTranslateOptionsSetProgress'\
 ]"
 
 EXPORTED_RUNTIME_FUNCTIONS="[\
@@ -89,16 +143,19 @@ gdal: gdal.js
 
 # See https://github.com/emscripten-core/emscripten/issues/6090 for why disabling errors on undefined is necessary
 # I wasn't able to find an equivalent workaround to what was described in that thread using the GDAL build system.
+# GDAL insists on using dlopen() even when it's compiled entirely statically, which causes Emscripten to throw an 
+# error. Compiling using MAIN_MODULE=2 allows dlopen() to function correctly while maintaining other benefits of
+# code elimination.
 gdal.js: $(GDAL)/libgdal.a
 	EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMCC) $(GDAL)/libgdal.a $(PROJ4)/src/.libs/libproj.a -o gdal.js \
 		-s EXPORTED_FUNCTIONS=$(EXPORTED_FUNCTIONS) \
-		-s EXTRA_EXPORTED_RUNTIME_METHODS=$(EXPORTED_RUNTIME_FUNCTIONS) \
-		-s TOTAL_MEMORY=256MB \
+		-s EXPORTED_RUNTIME_METHODS=$(EXPORTED_RUNTIME_FUNCTIONS) \
+		-s MAIN_MODULE=2 \
+		-s ALLOW_MEMORY_GROWTH \
+		-s INITIAL_MEMORY=256MB \
+		-s MAXIMUM_MEMORY=2GB \
 		-s FORCE_FILESYSTEM=1 \
-		-s ERROR_ON_UNDEFINED_SYMBOLS=0 \
-		-s WARN_ON_UNDEFINED_SYMBOLS=1 \
-		-s RESERVED_FUNCTION_POINTERS=2 \
-		-s STRICT=1 \
+		-s ALLOW_TABLE_GROWTH \
 		-s WASM=1 \
 		-lworkerfs.js \
 		--preload-file $(GDAL)/data/pcs.csv@/usr/local/share/gdal/pcs.csv \
@@ -116,12 +173,15 @@ gdal.js: $(GDAL)/libgdal.a
 
 
 $(GDAL)/libgdal.a: $(PROJ4)/src/.libs/libproj.a $(GDAL)/config.status
-	cd $(GDAL) && EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMMAKE) make lib-target
+	cd $(GDAL) && EMCC_CFLAGS="$(GDAL_EMCC_CFLAGS)" $(EMMAKE) make static-lib
 
 # TODO: Pass the configure params more elegantly so that this uses the
 # EMCONFIGURE variable
+# Disables the "-Wno-limited-postlink-optimizations" warning because this warning causes one of
+# GDAL's configure checks to fail because it assumes that success will result in zero-length
+# output from the compiler, and printing a warning breaks that assumption.
 $(GDAL)/config.status: $(GDAL)/configure
-	cd $(GDAL) && emconfigure ./configure $(GDAL_CONFIG_OPTIONS)
+	cd $(GDAL) && EMCC_CFLAGS="-Wno-limited-postlink-optimizations" emconfigure ./configure $(GDAL_CONFIG_OPTIONS)
 
 ##########
 # PROJ.4 #

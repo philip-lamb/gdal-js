@@ -28,22 +28,24 @@
 
 #include "ogr_carto.h"
 #include "ogr_pgdump.h"
+#include "ogrgeojsonreader.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                        OGRCARTODataSource()                        */
 /************************************************************************/
 
 OGRCARTODataSource::OGRCARTODataSource() :
-    pszName(NULL),
-    pszAccount(NULL),
-    papoLayers(NULL),
+    pszName(nullptr),
+    pszAccount(nullptr),
+    papoLayers(nullptr),
     nLayers(0),
-    bReadWrite(FALSE),
-    bBatchInsert(TRUE),
-    bUseHTTPS(FALSE),
-    bMustCleanPersistent(FALSE),
+    bReadWrite(false),
+    bBatchInsert(true),
+    bCopyMode(true),
+    bUseHTTPS(false),
+    bMustCleanPersistent(false),
     bHasOGRMetadataFunction(-1),
     nPostGISMajor(2),
     nPostGISMinor(0)
@@ -60,9 +62,9 @@ OGRCARTODataSource::~OGRCARTODataSource()
         delete papoLayers[i];
     CPLFree( papoLayers );
 
-    if (bMustCleanPersistent)
+    if( bMustCleanPersistent )
     {
-        char** papszOptions = NULL;
+        char** papszOptions = nullptr;
         papszOptions = CSLSetNameValue(papszOptions, "CLOSE_PERSISTENT", CPLSPrintf("CARTO:%p", this));
         CPLHTTPDestroyResult( CPLHTTPFetch( GetAPIURL(), papszOptions) );
         CSLDestroy(papszOptions);
@@ -83,6 +85,10 @@ int OGRCARTODataSource::TestCapability( const char * pszCap )
         return TRUE;
     else if( bReadWrite && EQUAL(pszCap,ODsCDeleteLayer) )
         return TRUE;
+    else if( bReadWrite && EQUAL(pszCap,ODsCCreateGeomFieldAfterCreateLayer) )
+        return TRUE;
+    else if( EQUAL(pszCap,ODsCRandomLayerWrite) )
+        return bReadWrite;
     else
         return FALSE;
 }
@@ -95,7 +101,7 @@ OGRLayer *OGRCARTODataSource::GetLayer( int iLayer )
 
 {
     if( iLayer < 0 || iLayer >= nLayers )
-        return NULL;
+        return nullptr;
     else
         return papoLayers[iLayer];
 }
@@ -123,7 +129,7 @@ static CPLString OGRCARTOGetOptionValue(const char* pszFilename,
     if (!pszOptionValue)
         return "";
 
-    CPLString osOptionValue(pszOptionValue + strlen(osOptionName));
+    CPLString osOptionValue(pszOptionValue + osOptionName.size());
     const char* pszSpace = strchr(osOptionValue.c_str(), ' ');
     if (pszSpace)
         osOptionValue.resize(pszSpace - osOptionValue.c_str());
@@ -139,8 +145,13 @@ int OGRCARTODataSource::Open( const char * pszFilename,
                                 int bUpdateIn )
 
 {
-    bReadWrite = bUpdateIn;
-    bBatchInsert = CPLTestBool(CSLFetchNameValueDef(papszOpenOptionsIn, "BATCH_INSERT", "YES"));
+    bReadWrite = CPL_TO_BOOL(bUpdateIn);
+    bBatchInsert = CPLTestBool(
+        CSLFetchNameValueDef(papszOpenOptionsIn, "BATCH_INSERT", "YES"));
+    bCopyMode = CPLTestBool(
+        CSLFetchNameValueDef(papszOpenOptionsIn, "COPY_MODE", "YES"));
+    if( bCopyMode )
+        bBatchInsert = TRUE;
 
     pszName = CPLStrdup( pszFilename );
     if( CSLFetchNameValue(papszOpenOptionsIn, "ACCOUNT") )
@@ -161,21 +172,23 @@ int OGRCARTODataSource::Open( const char * pszFilename,
         }
     }
 
-    osAPIKey = CSLFetchNameValueDef(papszOpenOptionsIn, "API_KEY",
-                            CPLGetConfigOption("CARTO_API_KEY", 
-                                CPLGetConfigOption("CARTODB_API_KEY", "")));
+    osAPIKey = CSLFetchNameValueDef(
+        papszOpenOptionsIn, "API_KEY",
+        CPLGetConfigOption("CARTO_API_KEY",
+                           CPLGetConfigOption("CARTODB_API_KEY", "")));
 
     CPLString osTables = OGRCARTOGetOptionValue(pszFilename, "tables");
 
-    /*if( osTables.size() == 0 && osAPIKey.size() == 0 )
+    /*if( osTables.empty() && osAPIKey.empty() )
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "When not specifying tables option, CARTO_API_KEY must be defined");
         return FALSE;
     }*/
 
-    bUseHTTPS = CPLTestBool(CPLGetConfigOption("CARTO_HTTPS",
-                                CPLGetConfigOption("CARTODB_HTTPS", "YES")));
+    bUseHTTPS = CPLTestBool(
+        CPLGetConfigOption("CARTO_HTTPS",
+                           CPLGetConfigOption("CARTODB_HTTPS", "YES")));
 
     OGRLayer* poSchemaLayer = ExecuteSQLInternal("SELECT current_schema()");
     if( poSchemaLayer )
@@ -191,7 +204,7 @@ int OGRCARTODataSource::Open( const char * pszFilename,
         }
         ReleaseResultSet(poSchemaLayer);
     }
-    if( osCurrentSchema.size() == 0 )
+    if( osCurrentSchema.empty() )
         return FALSE;
 
 /* -------------------------------------------------------------------- */
@@ -220,7 +233,7 @@ int OGRCARTODataSource::Open( const char * pszFilename,
         }
     }
 
-    if( osAPIKey.size() && bUpdateIn )
+    if( !osAPIKey.empty() && bUpdateIn )
     {
         ExecuteSQLInternal(
                 "DROP FUNCTION IF EXISTS ogr_table_metadata(TEXT,TEXT); "
@@ -253,7 +266,7 @@ int OGRCARTODataSource::Open( const char * pszFilename,
                 "$$ LANGUAGE SQL");
     }
 
-    if (osTables.size() != 0)
+    if (!osTables.empty())
     {
         char** papszTables = CSLTokenizeString2(osTables, ",", 0);
         for(int i=0;papszTables && papszTables[i];i++)
@@ -270,7 +283,7 @@ int OGRCARTODataSource::Open( const char * pszFilename,
     if( poTableListLayer )
     {
         OGRFeature* poFeat;
-        while( (poFeat = poTableListLayer->GetNextFeature()) != NULL )
+        while( (poFeat = poTableListLayer->GetNextFeature()) != nullptr )
         {
             if( poFeat->GetFieldCount() == 1 )
             {
@@ -297,7 +310,7 @@ int OGRCARTODataSource::Open( const char * pszFilename,
         if( poTableListLayer )
         {
             OGRFeature* poFeat;
-            while( (poFeat = poTableListLayer->GetNextFeature()) != NULL )
+            while( (poFeat = poTableListLayer->GetNextFeature()) != nullptr )
             {
                 if( poFeat->GetFieldCount() == 1 )
                 {
@@ -324,10 +337,10 @@ int OGRCARTODataSource::Open( const char * pszFilename,
 const char* OGRCARTODataSource::GetAPIURL() const
 {
     const char* pszAPIURL = CPLGetConfigOption("CARTO_API_URL",
-                                CPLGetConfigOption("CARTODB_API_URL", NULL));
+                                CPLGetConfigOption("CARTODB_API_URL", nullptr));
     if (pszAPIURL)
         return pszAPIURL;
-    else if (bUseHTTPS)
+    else if( bUseHTTPS )
         return CPLSPrintf("https://%s.carto.com/api/v2/sql", pszAccount);
     else
         return CPLSPrintf("http://%s.carto.com/api/v2/sql", pszAccount);
@@ -342,31 +355,32 @@ int OGRCARTODataSource::FetchSRSId( OGRSpatialReference * poSRS )
 {
     const char*         pszAuthorityName;
 
-    if( poSRS == NULL )
+    if( poSRS == nullptr )
         return 0;
 
     OGRSpatialReference oSRS(*poSRS);
-    poSRS = NULL;
+    // cppcheck-suppress uselessAssignmentPtrArg
+    poSRS = nullptr;
 
-    pszAuthorityName = oSRS.GetAuthorityName(NULL);
+    pszAuthorityName = oSRS.GetAuthorityName(nullptr);
 
-    if( pszAuthorityName == NULL || strlen(pszAuthorityName) == 0 )
+    if( pszAuthorityName == nullptr || strlen(pszAuthorityName) == 0 )
     {
 /* -------------------------------------------------------------------- */
 /*      Try to identify an EPSG code                                    */
 /* -------------------------------------------------------------------- */
         oSRS.AutoIdentifyEPSG();
 
-        pszAuthorityName = oSRS.GetAuthorityName(NULL);
-        if (pszAuthorityName != NULL && EQUAL(pszAuthorityName, "EPSG"))
+        pszAuthorityName = oSRS.GetAuthorityName(nullptr);
+        if (pszAuthorityName != nullptr && EQUAL(pszAuthorityName, "EPSG"))
         {
-            const char* pszAuthorityCode = oSRS.GetAuthorityCode(NULL);
-            if ( pszAuthorityCode != NULL && strlen(pszAuthorityCode) > 0 )
+            const char* pszAuthorityCode = oSRS.GetAuthorityCode(nullptr);
+            if ( pszAuthorityCode != nullptr && strlen(pszAuthorityCode) > 0 )
             {
                 /* Import 'clean' SRS */
                 oSRS.importFromEPSG( atoi(pszAuthorityCode) );
 
-                pszAuthorityName = oSRS.GetAuthorityName(NULL);
+                pszAuthorityName = oSRS.GetAuthorityName(nullptr);
             }
         }
     }
@@ -374,14 +388,12 @@ int OGRCARTODataSource::FetchSRSId( OGRSpatialReference * poSRS )
 /*      Check whether the EPSG authority code is already mapped to a    */
 /*      SRS ID.                                                         */
 /* -------------------------------------------------------------------- */
-    if( pszAuthorityName != NULL && EQUAL( pszAuthorityName, "EPSG" ) )
+    if( pszAuthorityName != nullptr && EQUAL( pszAuthorityName, "EPSG" ) )
     {
-        int             nAuthorityCode;
-
         /* For the root authority name 'EPSG', the authority code
          * should always be integral
          */
-        nAuthorityCode = atoi( oSRS.GetAuthorityCode(NULL) );
+        const int nAuthorityCode = atoi( oSRS.GetAuthorityCode(nullptr) );
 
         return nAuthorityCode;
     }
@@ -398,23 +410,21 @@ OGRLayer   *OGRCARTODataSource::ICreateLayer( const char *pszNameIn,
                                            OGRwkbGeometryType eGType,
                                            char ** papszOptions )
 {
-    if (!bReadWrite)
+    if( !bReadWrite )
     {
         CPLError(CE_Failure, CPLE_AppDefined, "Operation not available in read-only mode");
-        return NULL;
+        return nullptr;
     }
 
 /* -------------------------------------------------------------------- */
 /*      Do we already have this layer?  If so, should we blow it        */
 /*      away?                                                           */
 /* -------------------------------------------------------------------- */
-    int iLayer;
-
-    for( iLayer = 0; iLayer < nLayers; iLayer++ )
+    for( int iLayer = 0; iLayer < nLayers; iLayer++ )
     {
         if( EQUAL(pszNameIn,papoLayers[iLayer]->GetName()) )
         {
-            if( CSLFetchNameValue( papszOptions, "OVERWRITE" ) != NULL
+            if( CSLFetchNameValue( papszOptions, "OVERWRITE" ) != nullptr
                 && !EQUAL(CSLFetchNameValue(papszOptions,"OVERWRITE"),"NO") )
             {
                 DeleteLayer( iLayer );
@@ -426,26 +436,26 @@ OGRLayer   *OGRCARTODataSource::ICreateLayer( const char *pszNameIn,
                           "Use the layer creation option OVERWRITE=YES to "
                           "replace it.",
                           pszNameIn );
-                return NULL;
+                return nullptr;
             }
         }
     }
 
     CPLString osName(pszNameIn);
-    if( CPLFetchBool(const_cast<const char**>(papszOptions), "LAUNDER", true) )
+    if( CPLFetchBool(papszOptions, "LAUNDER", true) )
     {
         char* pszTmp = OGRPGCommonLaunderName(pszNameIn);
         osName = pszTmp;
         CPLFree(pszTmp);
     }
 
-
     OGRCARTOTableLayer* poLayer = new OGRCARTOTableLayer(this, osName);
-    const bool bGeomNullable = CPLFetchBool(const_cast<const char**>(papszOptions), "GEOMETRY_NULLABLE", true);
+    const bool bGeomNullable =
+        CPLFetchBool(papszOptions, "GEOMETRY_NULLABLE", true);
     int nSRID = (poSpatialRef && eGType != wkbNone) ? FetchSRSId( poSpatialRef ) : 0;
-    bool bCartoify = CPLFetchBool(const_cast<const char**>(papszOptions), "CARTODBFY",
-                                    CPLFetchBool(const_cast<const char**>(papszOptions), "CARTODBIFY",
-                                                 true));
+    bool bCartoify = CPLFetchBool(papszOptions, "CARTODBFY",
+                                  CPLFetchBool(papszOptions, "CARTODBIFY",
+                                               true));
     if( bCartoify )
     {
         if( nSRID != 4326 )
@@ -460,8 +470,9 @@ OGRLayer   *OGRCARTODataSource::ICreateLayer( const char *pszNameIn,
         }
     }
 
-    poLayer->SetLaunderFlag( CPLFetchBool(const_cast<const char**>(papszOptions), "LAUNDER", true) );
-    poLayer->SetDeferredCreation(eGType, poSpatialRef, bGeomNullable, bCartoify);
+    poLayer->SetLaunderFlag( CPLFetchBool(papszOptions, "LAUNDER", true) );
+    poLayer->SetDeferredCreation(eGType, poSpatialRef,
+                                 bGeomNullable, bCartoify);
     papoLayers = (OGRCARTOTableLayer**) CPLRealloc(
                     papoLayers, (nLayers + 1) * sizeof(OGRCARTOTableLayer*));
     papoLayers[nLayers ++] = poLayer;
@@ -475,7 +486,7 @@ OGRLayer   *OGRCARTODataSource::ICreateLayer( const char *pszNameIn,
 
 OGRErr OGRCARTODataSource::DeleteLayer(int iLayer)
 {
-    if (!bReadWrite)
+    if( !bReadWrite )
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "Operation not available in read-only mode");
@@ -505,7 +516,7 @@ OGRErr OGRCARTODataSource::DeleteLayer(int iLayer)
              sizeof(void *) * (nLayers - iLayer - 1) );
     nLayers--;
 
-    if (osLayerName.size() == 0)
+    if (osLayerName.empty())
         return OGRERR_NONE;
 
     if( !bDeferredCreation )
@@ -515,7 +526,7 @@ OGRErr OGRCARTODataSource::DeleteLayer(int iLayer)
                     OGRCARTOEscapeIdentifier(osLayerName).c_str());
 
         json_object* poObj = RunSQL(osSQL);
-        if( poObj == NULL )
+        if( poObj == nullptr )
             return OGRERR_FAILURE;
         json_object_put(poObj);
     }
@@ -529,9 +540,137 @@ OGRErr OGRCARTODataSource::DeleteLayer(int iLayer)
 
 char** OGRCARTODataSource::AddHTTPOptions()
 {
-    bMustCleanPersistent = TRUE;
+    bMustCleanPersistent = true;
 
-    return CSLAddString(NULL, CPLSPrintf("PERSISTENT=CARTO:%p", this));
+    return CSLAddString(nullptr, CPLSPrintf("PERSISTENT=CARTO:%p", this));
+}
+
+/************************************************************************/
+/*                               RunCopyFrom()                               */
+/************************************************************************/
+
+json_object* OGRCARTODataSource::RunCopyFrom(const char* pszSQL, const char* pszCopyFile)
+{
+
+/* -------------------------------------------------------------------- */
+/*  Set up our copyfrom end point URL                                   */
+/* -------------------------------------------------------------------- */
+    const char* pszAPIURL = GetAPIURL();
+    CPLString osURL(pszAPIURL);
+    osURL += "/copyfrom?q=";
+    
+    if( !(strlen(pszSQL)>0) )
+    {
+        CPLDebug( "CARTO", "RunCopyFrom: pszSQL is empty" );
+        return nullptr;
+    }
+    
+    if( !(strlen(pszCopyFile)>0) )
+    {
+        CPLDebug( "CARTO", "RunCopyFrom: pszCopyFile is empty" );
+        return nullptr;
+    }
+    
+/* -------------------------------------------------------------------- */
+/*  URL encode the COPY sql and add to URL with API key                 */
+/* -------------------------------------------------------------------- */
+    CPLDebug( "CARTO", "RunCopyFrom: osCopySQL = %s", pszSQL );
+    char *pszEscapedSQL = CPLEscapeString(pszSQL, -1, CPLES_URL);
+    osURL += pszEscapedSQL;
+    CPLFree(pszEscapedSQL);
+
+    if( !osAPIKey.empty() )
+    {
+        osURL += "&api_key=";
+        osURL += osAPIKey;
+    }
+    
+/* -------------------------------------------------------------------- */
+/*  Set the POST payload                                                */
+/* -------------------------------------------------------------------- */
+    CPLString osSQL("POSTFIELDS=");
+    osSQL += pszCopyFile;
+    
+/* -------------------------------------------------------------------- */
+/*  Make the HTTP request                                               */
+/* -------------------------------------------------------------------- */
+    char** papszOptions = CSLAddString(
+        !STARTS_WITH(pszAPIURL, "/vsimem/") ? AddHTTPOptions(): nullptr, osSQL);
+    CPLHTTPResult * psResult = CPLHTTPFetch( osURL, papszOptions);
+    CSLDestroy(papszOptions);
+    if( psResult == nullptr )
+    {
+        CPLDebug( "CARTO", "RunCopyFrom: null return from CPLHTTPFetch" );
+        return nullptr;
+    }
+    
+/* -------------------------------------------------------------------- */
+/*      Check for some error conditions and report.  HTML Messages      */
+/*      are transformed info failure.                                   */
+/* -------------------------------------------------------------------- */
+    if (psResult->pszContentType &&
+        STARTS_WITH(psResult->pszContentType, "text/html"))
+    {
+        CPLDebug( "CARTO", "RunCopyFrom HTML Response:%s", psResult->pabyData );
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "HTML error page returned by server");
+        CPLHTTPDestroyResult(psResult);
+        return nullptr;
+    }
+    if (psResult->pszErrBuf != nullptr)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "RunCopyFrom Error Message:%s", psResult->pszErrBuf );
+    }
+    else if (psResult->nStatus != 0)
+    {
+        CPLError(CE_Failure, CPLE_AppDefined,
+                 "RunCopyFrom Error Status:%d", psResult->nStatus );
+    }
+
+    if( psResult->pabyData == nullptr )
+    {
+        CPLHTTPDestroyResult(psResult);
+        return nullptr;
+    }
+    
+    json_object* poObj = nullptr;
+    const char* pszText = reinterpret_cast<const char*>(psResult->pabyData);
+    if( !OGRJSonParse(pszText, &poObj, true) )
+    {
+        CPLDebug( "CARTO", "RunCopyFrom unable to parse JSON return: %s", pszText );
+        CPLHTTPDestroyResult(psResult);
+        return nullptr;
+    }
+
+    CPLHTTPDestroyResult(psResult);
+
+    if( poObj != nullptr )
+    {
+        if( json_object_get_type(poObj) == json_type_object )
+        {
+            json_object* poError = CPL_json_object_object_get(poObj, "error");
+            if( poError != nullptr && json_object_get_type(poError) == json_type_array &&
+                json_object_array_length(poError) > 0 )
+            {
+                poError = json_object_array_get_idx(poError, 0);
+                if( poError != nullptr && json_object_get_type(poError) == json_type_string )
+                {
+                    CPLError(CE_Failure, CPLE_AppDefined,
+                            "Error returned by server : %s", json_object_get_string(poError));
+                    json_object_put(poObj);
+                    return nullptr;
+                }
+            }
+        }
+        else
+        {
+            json_object_put(poObj);
+            return nullptr;
+        }
+    }
+
+    return poObj;
 }
 
 /************************************************************************/
@@ -554,7 +693,7 @@ json_object* OGRCARTODataSource::RunSQL(const char* pszUnescapedSQL)
 /* -------------------------------------------------------------------- */
 /*      Provide the API Key                                             */
 /* -------------------------------------------------------------------- */
-    if( osAPIKey.size() )
+    if( !osAPIKey.empty() )
     {
         osSQL += "&api_key=";
         osSQL += osAPIKey;
@@ -565,11 +704,11 @@ json_object* OGRCARTODataSource::RunSQL(const char* pszUnescapedSQL)
 /* -------------------------------------------------------------------- */
     const char* pszAPIURL = GetAPIURL();
     char** papszOptions = CSLAddString(
-        !STARTS_WITH(pszAPIURL, "/vsimem/") ? AddHTTPOptions(): NULL, osSQL);
+        !STARTS_WITH(pszAPIURL, "/vsimem/") ? AddHTTPOptions(): nullptr, osSQL);
     CPLHTTPResult * psResult = CPLHTTPFetch( GetAPIURL(), papszOptions);
     CSLDestroy(papszOptions);
-    if( psResult == NULL )
-        return NULL;
+    if( psResult == nullptr )
+        return nullptr;
 
 /* -------------------------------------------------------------------- */
 /*      Check for some error conditions and report.  HTML Messages      */
@@ -582,9 +721,9 @@ json_object* OGRCARTODataSource::RunSQL(const char* pszUnescapedSQL)
         CPLError(CE_Failure, CPLE_AppDefined,
                  "HTML error page returned by server");
         CPLHTTPDestroyResult(psResult);
-        return NULL;
+        return nullptr;
     }
-    if (psResult->pszErrBuf != NULL)
+    if (psResult->pszErrBuf != nullptr)
     {
         CPLError(CE_Failure, CPLE_AppDefined,
                  "RunSQL Error Message:%s", psResult->pszErrBuf );
@@ -595,60 +734,53 @@ json_object* OGRCARTODataSource::RunSQL(const char* pszUnescapedSQL)
                  "RunSQL Error Status:%d", psResult->nStatus );
     }
 
-    if( psResult->pabyData == NULL )
+    if( psResult->pabyData == nullptr )
     {
         CPLHTTPDestroyResult(psResult);
-        return NULL;
+        return nullptr;
     }
 
     if( strlen((const char*)psResult->pabyData) < 1000 )
         CPLDebug( "CARTO", "RunSQL Response:%s", psResult->pabyData );
 
-    json_tokener* jstok = NULL;
-    json_object* poObj = NULL;
-
-    jstok = json_tokener_new();
-    poObj = json_tokener_parse_ex(jstok, (const char*) psResult->pabyData, -1);
-    if( jstok->err != json_tokener_success)
+    json_object* poObj = nullptr;
+    const char* pszText = reinterpret_cast<const char*>(psResult->pabyData);
+    if( !OGRJSonParse(pszText, &poObj, true) )
     {
-        CPLError( CE_Failure, CPLE_AppDefined,
-                    "JSON parsing error: %s (at offset %d)",
-                    json_tokener_error_desc(jstok->err), jstok->char_offset);
-        json_tokener_free(jstok);
         CPLHTTPDestroyResult(psResult);
-        return NULL;
+        return nullptr;
     }
-    json_tokener_free(jstok);
 
     CPLHTTPDestroyResult(psResult);
 
-    if( poObj != NULL )
+    if( poObj != nullptr )
     {
         if( json_object_get_type(poObj) == json_type_object )
         {
-            json_object* poError = json_object_object_get(poObj, "error");
-            if( poError != NULL && json_object_get_type(poError) == json_type_array &&
+            json_object* poError = CPL_json_object_object_get(poObj, "error");
+            if( poError != nullptr && json_object_get_type(poError) == json_type_array &&
                 json_object_array_length(poError) > 0 )
             {
                 poError = json_object_array_get_idx(poError, 0);
-                if( poError != NULL && json_object_get_type(poError) == json_type_string )
+                if( poError != nullptr && json_object_get_type(poError) == json_type_string )
                 {
                     CPLError(CE_Failure, CPLE_AppDefined,
                             "Error returned by server : %s", json_object_get_string(poError));
                     json_object_put(poObj);
-                    return NULL;
+                    return nullptr;
                 }
             }
         }
         else
         {
             json_object_put(poObj);
-            return NULL;
+            return nullptr;
         }
     }
 
     return poObj;
 }
+
 
 /************************************************************************/
 /*                        OGRCARTOGetSingleRow()                      */
@@ -656,23 +788,23 @@ json_object* OGRCARTODataSource::RunSQL(const char* pszUnescapedSQL)
 
 json_object* OGRCARTOGetSingleRow(json_object* poObj)
 {
-    if( poObj == NULL )
+    if( poObj == nullptr )
     {
-        return NULL;
+        return nullptr;
     }
 
-    json_object* poRows = json_object_object_get(poObj, "rows");
-    if( poRows == NULL ||
+    json_object* poRows = CPL_json_object_object_get(poObj, "rows");
+    if( poRows == nullptr ||
         json_object_get_type(poRows) != json_type_array ||
         json_object_array_length(poRows) != 1 )
     {
-        return NULL;
+        return nullptr;
     }
 
     json_object* poRowObj = json_object_array_get_idx(poRows, 0);
-    if( poRowObj == NULL || json_object_get_type(poRowObj) != json_type_object )
+    if( poRowObj == nullptr || json_object_get_type(poRowObj) != json_type_object )
     {
-        return NULL;
+        return nullptr;
     }
 
     return poRowObj;
@@ -688,13 +820,13 @@ OGRLayer * OGRCARTODataSource::ExecuteSQL( const char *pszSQLCommand,
 
 {
     return ExecuteSQLInternal(pszSQLCommand, poSpatialFilter, pszDialect,
-                              TRUE);
+                              true);
 }
 
 OGRLayer * OGRCARTODataSource::ExecuteSQLInternal( const char *pszSQLCommand,
-                                                     OGRGeometry *poSpatialFilter,
-                                                     const char *pszDialect,
-                                                     int bRunDeferredActions )
+                                                   OGRGeometry *poSpatialFilter,
+                                                   const char *pszDialect,
+                                                   bool bRunDeferredActions )
 
 {
     if( bRunDeferredActions )
@@ -702,7 +834,7 @@ OGRLayer * OGRCARTODataSource::ExecuteSQLInternal( const char *pszSQLCommand,
         for( int iLayer = 0; iLayer < nLayers; iLayer++ )
         {
             papoLayers[iLayer]->RunDeferredCreationIfNecessary();
-            CPL_IGNORE_RET_VAL(papoLayers[iLayer]->FlushDeferredInsert());
+            CPL_IGNORE_RET_VAL(papoLayers[iLayer]->FlushDeferredBuffer());
             papoLayers[iLayer]->RunDeferredCartofy();
         }
     }
@@ -738,7 +870,7 @@ OGRLayer * OGRCARTODataSource::ExecuteSQLInternal( const char *pszSQLCommand,
                 break;
             }
         }
-        return NULL;
+        return nullptr;
     }
 
     if( !STARTS_WITH_CI(pszSQLCommand, "SELECT") &&
@@ -746,18 +878,18 @@ OGRLayer * OGRCARTODataSource::ExecuteSQLInternal( const char *pszSQLCommand,
         !STARTS_WITH_CI(pszSQLCommand, "WITH") )
     {
         RunSQL(pszSQLCommand);
-        return NULL;
+        return nullptr;
     }
 
     OGRCARTOResultLayer* poLayer = new OGRCARTOResultLayer( this, pszSQLCommand );
 
-    if( poSpatialFilter != NULL )
+    if( poSpatialFilter != nullptr )
         poLayer->SetSpatialFilter( poSpatialFilter );
 
     if( !poLayer->IsOK() )
     {
         delete poLayer;
-        return NULL;
+        return nullptr;
     }
 
     return poLayer;

@@ -1383,7 +1383,7 @@ def ogr_gml_34():
     ds = None
 
     gdal.Unlink( '/vsimem/ogr_gml_34.gml' )
-    gdal.Unlink( '/vsimem/ogr_gml_34.gfs' )
+    gdal.Unlink( '/vsimem/ogr_gml_34.xsd' )
 
     return 'success'
 
@@ -3792,6 +3792,7 @@ def ogr_gml_72():
 
     gdal.Unlink("/vsimem/ogr_gml_72.gml")
     gdal.Unlink("/vsimem/ogr_gml_72.xsd")
+    gdal.Unlink("/vsimem/ogr_gml_72.gfs")
 
     ds = ogr.GetDriverByName('GML').CreateDataSource('/vsimem/ogr_gml_72.gml')
     ds.SetMetadata({'NAME': 'name', 'DESCRIPTION': 'description' })
@@ -3806,6 +3807,7 @@ def ogr_gml_72():
 
     gdal.Unlink("/vsimem/ogr_gml_72.gml")
     gdal.Unlink("/vsimem/ogr_gml_72.xsd")
+    gdal.Unlink("/vsimem/ogr_gml_72.gfs")
 
     return 'success'
 
@@ -3857,11 +3859,46 @@ def ogr_gml_74():
     if not gdaltest.have_gml_reader:
         return 'skip'
 
+    # With .xsd
     ds = gdal.OpenEx('data/expected_gml_gml32.gml', open_options = ['FORCE_SRS_DETECTION=YES'] )
     lyr = ds.GetLayer(0)
     if lyr.GetSpatialRef() is None:
         gdaltest.post_reason('did not get expected SRS')
         return 'fail'
+    if lyr.GetFeatureCount() != 2:
+        gdaltest.post_reason('did not get expected feature count')
+        print(lyr.GetFeatureCount())
+        return 'fail'
+
+    shutil.copy('data/expected_gml_gml32.gml', 'tmp/ogr_gml_74.gml')
+    if os.path.exists('tmp/ogr_gml_74.gfs'):
+        os.unlink('tmp/ogr_gml_74.gfs')
+
+    # Without .xsd or .gfs
+    ds = gdal.OpenEx('tmp/ogr_gml_74.gml', open_options = ['FORCE_SRS_DETECTION=YES'] )
+    lyr = ds.GetLayer(0)
+    if lyr.GetSpatialRef() is None:
+        gdaltest.post_reason('did not get expected SRS')
+        return 'fail'
+    if lyr.GetFeatureCount() != 2:
+        gdaltest.post_reason('did not get expected feature count')
+        print(lyr.GetFeatureCount())
+        return 'fail'
+
+    # With .gfs
+    ds = gdal.OpenEx('tmp/ogr_gml_74.gml', open_options = ['FORCE_SRS_DETECTION=YES'] )
+    lyr = ds.GetLayer(0)
+    if lyr.GetSpatialRef() is None:
+        gdaltest.post_reason('did not get expected SRS')
+        return 'fail'
+    if lyr.GetFeatureCount() != 2:
+        gdaltest.post_reason('did not get expected feature count')
+        print(lyr.GetFeatureCount())
+        return 'fail'
+    ds = None
+
+    os.unlink('tmp/ogr_gml_74.gml')
+    os.unlink('tmp/ogr_gml_74.gfs')
 
     return 'success'
 
@@ -4043,6 +4080,119 @@ def ogr_gml_78():
     return 'success'
 
 ###############################################################################
+# Test SRSNAME_FORMAT
+
+def ogr_gml_79():
+
+    sr = osr.SpatialReference()
+    sr.ImportFromEPSG(4326)
+
+    tests = [ [ 'SHORT', 'EPSG:4326', '2 49' ],
+              [ 'OGC_URN', 'urn:ogc:def:crs:EPSG::4326', '49 2'],
+              [ 'OGC_URL', 'http://www.opengis.net/def/crs/EPSG/0/4326', '49 2']
+            ]
+    for (srsname_format, expected_srsname, expected_coords) in tests:
+
+        ds = ogr.GetDriverByName('GML').CreateDataSource('/vsimem/ogr_gml_79.xml', \
+                options = ['FORMAT=GML3', 'SRSNAME_FORMAT='+srsname_format] )
+        lyr = ds.CreateLayer('firstlayer', srs = sr)
+        feat = ogr.Feature(lyr.GetLayerDefn())
+        geom = ogr.CreateGeometryFromWkt('POINT (2 49)')
+        feat.SetGeometry(geom)
+        lyr.CreateFeature(feat)
+        ds = None
+
+        f = gdal.VSIFOpenL("/vsimem/ogr_gml_79.xml", "rb")
+        if f is not None:
+            data = gdal.VSIFReadL(1, 10000, f).decode('utf-8')
+            gdal.VSIFCloseL(f)
+
+        if data.find(expected_srsname) < 0 or data.find(expected_coords) < 0:
+            gdaltest.post_reason('fail')
+            print(srsname_format)
+            print(data)
+            return 'fail'
+
+    gdal.Unlink('/vsimem/ogr_gml_79.xml')
+    gdal.Unlink('/vsimem/ogr_gml_79.xsd')
+
+    return 'success'
+
+###############################################################################
+# Test null / unset
+
+def ogr_gml_80():
+
+    if not gdaltest.have_gml_reader:
+        return 'skip'
+
+    ds = ogr.GetDriverByName('GML').CreateDataSource('/vsimem/ogr_gml_80.xml')
+    lyr = ds.CreateLayer('test', geom_type = ogr.wkbNone)
+    lyr.CreateField( ogr.FieldDefn('int_field', ogr.OFTInteger) )
+
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f['int_field'] = 4
+    lyr.CreateFeature(f)
+
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetFieldNull('int_field')
+    lyr.CreateFeature(f)
+
+    f = ogr.Feature(lyr.GetLayerDefn())
+    lyr.CreateFeature(f)
+    f = None
+    ds = None
+
+    ds = ogr.Open('/vsimem/ogr_gml_80.xml')
+    lyr = ds.GetLayer(0)
+    f = lyr.GetNextFeature()
+    if f['int_field'] != 4:
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+
+    f = lyr.GetNextFeature()
+    if f['int_field'] != None:
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+
+    f = lyr.GetNextFeature()
+    if f.IsFieldSet('int_field'):
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+    f = None
+    ds = None
+
+    gdal.Unlink('/vsimem/ogr_gml_80.xml')
+    gdal.Unlink('/vsimem/ogr_gml_80.xsd')
+
+    return 'success'
+
+
+###############################################################################
+# Test building a .gfs with a field with xsi:nil="true" (#7027)
+
+def ogr_gml_81():
+
+    if not gdaltest.have_gml_reader:
+        return 'skip'
+
+    gdal.Unlink('data/test_xsi_nil_gfs.gfs')
+    ds = ogr.Open('data/test_xsi_nil_gfs.gml')
+    lyr = ds.GetLayer(0)
+    f = lyr.GetNextFeature()
+    if f.GetField('intval') != 1:
+        f.DumpReadable()
+        return 'fail'
+    ds = None
+
+    gdal.Unlink('data/test_xsi_nil_gfs.gfs')
+
+    return 'success'
+
+###############################################################################
 #  Cleanup
 
 def ogr_gml_cleanup():
@@ -4053,6 +4203,10 @@ def ogr_gml_cleanup():
     gdal.SetConfigOption( 'GML_SAVE_RESOLVED_TO', None )
 
     gdaltest.clean_tmp()
+
+    fl = gdal.ReadDir('/vsimem/')
+    if fl is not None:
+        print(fl)
 
     return ogr_gml_clean_files()
 
@@ -4167,6 +4321,7 @@ def ogr_gml_clean_files():
     for filename in files:
         if len(filename) > 13 and filename[-13:] == '.resolved.gml':
             os.unlink('data/' + filename)
+    gdal.Unlink('data/test_xsi_nil_gfs.gfs')
 
     return 'success'
 
@@ -4252,12 +4407,15 @@ gdaltest_list = [
     ogr_gml_76,
     ogr_gml_77,
     ogr_gml_78,
+    ogr_gml_79,
+    ogr_gml_80,
+    ogr_gml_81,
     ogr_gml_cleanup ]
 
 disabled_gdaltest_list = [
     ogr_gml_clean_files,
     ogr_gml_1,
-    ogr_gml_77,
+    ogr_gml_79,
     ogr_gml_cleanup ]
 
 if __name__ == '__main__':

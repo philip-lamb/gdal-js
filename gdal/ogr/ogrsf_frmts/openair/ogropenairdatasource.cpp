@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  OpenAir Translator
  * Purpose:  Implements OGROpenAirDataSource class
@@ -31,15 +30,15 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                        OGROpenAirDataSource()                        */
 /************************************************************************/
 
 OGROpenAirDataSource::OGROpenAirDataSource() :
-    pszName(NULL),
-    papoLayers(NULL),
+    pszName(nullptr),
+    papoLayers(nullptr),
     nLayers(0)
 {}
 
@@ -74,7 +73,7 @@ OGRLayer *OGROpenAirDataSource::GetLayer( int iLayer )
 
 {
     if( iLayer < 0 || iLayer >= nLayers )
-        return NULL;
+        return nullptr;
 
     return papoLayers[iLayer];
 }
@@ -89,7 +88,7 @@ int OGROpenAirDataSource::Open( const char * pszFilename )
     pszName = CPLStrdup( pszFilename );
 
     VSILFILE* fp = VSIFOpenL(pszFilename, "rb");
-    if (fp == NULL)
+    if (fp == nullptr)
         return FALSE;
 
     VSILFILE* fp2 = VSIFOpenL(pszFilename, "rb");
@@ -109,7 +108,6 @@ int OGROpenAirDataSource::Open( const char * pszFilename )
     return TRUE;
 }
 
-
 /************************************************************************/
 /*                              GetLatLon()                             */
 /************************************************************************/
@@ -128,7 +126,7 @@ bool OGROpenAirGetLatLon( const char* pszStr, double& dfLat, double& dfLon )
     double dfDegree = 0;
     double dfMinute = 0;
     double dfSecond = 0;
-    char c;
+    char c = '\0';
     bool bHasLat = false;
     bool bHasLon = false;
     while((c = *pszStr) != 0)

@@ -219,6 +219,11 @@ def test_ogr2ogr_lib_8():
     if ds is None or ds.GetLayer(0).GetFeatureCount() != 10:
         return 'fail'
 
+    # Test also with just a string and not an array
+    ds = gdal.VectorTranslate('', srcDS, format = 'Memory', layers='poly')
+    if ds is None or ds.GetLayer(0).GetFeatureCount() != 10:
+        return 'fail'
+
     return 'success'
 
 ###############################################################################
@@ -379,11 +384,56 @@ def test_ogr2ogr_lib_16():
 # Test gdal.VectorTranslate(dst_ds, ...) without accessMode specified (#6612)
 
 def test_ogr2ogr_lib_17():
-  
+
     ds = gdal.GetDriverByName('Memory').Create('', 0, 0, 0)
     gdal.VectorTranslate(ds, gdal.OpenEx('../ogr/data/poly.shp'))
     lyr = ds.GetLayer(0)
     if lyr.GetFeatureCount() != 10:
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Test -limit
+
+def test_ogr2ogr_lib_18():
+
+    ds = gdal.GetDriverByName('Memory').Create('', 0, 0, 0)
+    gdal.VectorTranslate(ds, gdal.OpenEx('../ogr/data/poly.shp'), limit = 1)
+    lyr = ds.GetLayer(0)
+    if lyr.GetFeatureCount() != 1:
+        return 'fail'
+    ds = None
+
+    return 'success'
+
+###############################################################################
+# Test -addFields + -select
+
+def test_ogr2ogr_lib_19():
+
+    src_ds = gdal.GetDriverByName('Memory').Create('', 0, 0, 0)
+    lyr = src_ds.CreateLayer('layer')
+    lyr.CreateField(ogr.FieldDefn('foo'))
+    lyr.CreateField(ogr.FieldDefn('bar'))
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f['foo'] = 'bar'
+    f['bar'] = 'foo'
+    lyr.CreateFeature(f)
+
+    ds = gdal.VectorTranslate('', src_ds, format = 'Memory', selectFields = ['foo'])
+    gdal.VectorTranslate(ds, src_ds, accessMode = 'append', addFields = True, selectFields = ['bar'])
+    lyr = ds.GetLayer(0)
+    f = lyr.GetNextFeature()
+    if f['foo'] != 'bar' or f.IsFieldSet('bar'):
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
+        return 'fail'
+    f = lyr.GetNextFeature()
+    if f['bar'] != 'foo' or f.IsFieldSet('foo'):
+        gdaltest.post_reason('fail')
+        f.DumpReadable()
         return 'fail'
     ds = None
 
@@ -406,7 +456,9 @@ gdaltest_list = [
     test_ogr2ogr_lib_14,
     test_ogr2ogr_lib_15,
     test_ogr2ogr_lib_16,
-    test_ogr2ogr_lib_17
+    test_ogr2ogr_lib_17,
+    test_ogr2ogr_lib_18,
+    test_ogr2ogr_lib_19,
     ]
 
 if __name__ == '__main__':

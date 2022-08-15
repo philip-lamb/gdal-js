@@ -28,6 +28,10 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
+#ifdef SWIGPYTHON
+%nothread;
+#endif
+
 #ifdef PERL_CPAN_NAMESPACE
 %module "Geo::GDAL::Const"
 #elif defined(SWIGCSHARP)
@@ -108,6 +112,11 @@
 %constant GRA_Lanczos          = GRA_Lanczos;
 %constant GRA_Average          = GRA_Average;
 %constant GRA_Mode             = GRA_Mode;
+%constant GRA_Max              = GRA_Max;
+%constant GRA_Min              = GRA_Min;
+%constant GRA_Med              = GRA_Med;
+%constant GRA_Q1               = GRA_Q1;
+%constant GRA_Q3               = GRA_Q3;
 
 // GDALPaletteInterp
 %constant GPI_Gray  = GPI_Gray;
@@ -141,6 +150,13 @@
 %constant CPLE_AssertionFailed            = CPLE_AssertionFailed;
 %constant CPLE_NoWriteAccess              = CPLE_NoWriteAccess;
 %constant CPLE_UserInterrupt              = CPLE_UserInterrupt;
+%constant CPLE_ObjectNull                 = CPLE_ObjectNull;
+%constant CPLE_HttpResponse               = CPLE_HttpResponse;
+%constant CPLE_AWSBucketNotFound          = CPLE_AWSBucketNotFound;
+%constant CPLE_AWSObjectNotFound          = CPLE_AWSObjectNotFound;
+%constant CPLE_AWSAccessDenied            = CPLE_AWSAccessDenied;
+%constant CPLE_AWSInvalidCredentials      = CPLE_AWSInvalidCredentials;
+%constant CPLE_AWSSignatureDoesNotMatch   = CPLE_AWSSignatureDoesNotMatch;
 
 // Open flags
 %constant OF_ALL     = GDAL_OF_ALL;
@@ -232,10 +248,18 @@
 %constant GFU_AlphaMax            = GFU_AlphaMax;
 %constant GFU_MaxCount            = GFU_MaxCount;
 
+// GDALRATTableType
+%constant GRTT_THEMATIC           = GRTT_THEMATIC;
+%constant GRTT_ATHEMATIC          = GRTT_ATHEMATIC;
+
 %constant GMF_ALL_VALID           = 0x01;
 %constant GMF_PER_DATASET         = 0x02;
 %constant GMF_ALPHA               = 0x04;
 %constant GMF_NODATA              = 0x08;
+
+%constant GDAL_DATA_COVERAGE_STATUS_UNIMPLEMENTED  = 0x01;
+%constant GDAL_DATA_COVERAGE_STATUS_DATA           = 0x02;
+%constant GDAL_DATA_COVERAGE_STATUS_EMPTY          = 0x04;
 
 // GDALAsyncStatusType
 %constant GARIO_PENDING = GARIO_PENDING;
@@ -248,3 +272,7 @@
 %constant GTO_BIT = GTO_BIT;
 %constant GTO_BSQ = GTO_BSQ;
 
+
+#ifdef SWIGPYTHON
+%thread;
+#endif

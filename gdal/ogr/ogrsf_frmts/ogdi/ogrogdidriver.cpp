@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  OGDI Bridge
  * Purpose:  Implements OGROGDIDriver class.
@@ -31,7 +30,7 @@
 #include "ogrogdi.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                           ~OGROGDIDriver()                           */
@@ -53,6 +52,19 @@ const char *OGROGDIDriver::GetName()
 }
 
 /************************************************************************/
+/*                         MyOGDIReportErrorFunction()                  */
+/************************************************************************/
+
+#if OGDI_RELEASEDATE >= 20160705
+static int MyOGDIReportErrorFunction(int errorcode, const char *error_message)
+{
+    CPLError(CE_Failure, CPLE_AppDefined, "OGDI error %d: %s",
+             errorcode, error_message);
+    return FALSE; // go on
+}
+#endif
+
+/************************************************************************/
 /*                                Open()                                */
 /************************************************************************/
 
@@ -60,30 +72,33 @@ OGRDataSource *OGROGDIDriver::Open( const char * pszFilename,
                                      int bUpdate )
 
 {
-    OGROGDIDataSource   *poDS;
-
     if( !STARTS_WITH_CI(pszFilename, "gltp:") )
-        return NULL;
+        return nullptr;
 
-    poDS = new OGROGDIDataSource();
+#if OGDI_RELEASEDATE >= 20160705
+    // Available only in post OGDI 3.2.0beta2
+    // and only called if env variable OGDI_STOP_ON_ERROR is set to NO
+    ecs_SetReportErrorFunction( MyOGDIReportErrorFunction );
+#endif
 
-    if( !poDS->Open( pszFilename, TRUE ) )
+    OGROGDIDataSource *poDS = new OGROGDIDataSource();
+
+    if( !poDS->Open( pszFilename ) )
     {
         delete poDS;
-        poDS = NULL;
+        poDS = nullptr;
     }
 
-    if ( poDS != NULL && bUpdate )
+    if ( poDS != nullptr && bUpdate )
     {
         CPLError( CE_Failure, CPLE_OpenFailed,
                   "OGDI Driver doesn't support update." );
         delete poDS;
-        poDS = NULL;
+        poDS = nullptr;
     }
 
     return poDS;
 }
-
 
 /************************************************************************/
 /*                           TestCapability()                           */
@@ -112,4 +127,3 @@ void RegisterOGROGDI()
 
     OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver( poDriver );
 }
-

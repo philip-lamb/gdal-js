@@ -1,5 +1,5 @@
 /******************************************************************************
- * $Id: ColorTable.i 11505 2007-05-13 17:25:26Z tamas $
+ * $Id$
  *
  * Name:     RAT.i
  * Project:  GDAL Python Interface
@@ -36,6 +36,7 @@
 #ifndef SWIGCSHARP
 typedef int GDALRATFieldType;
 typedef int GDALRATFieldUsage;
+typedef int GDALRATTableType;
 #else
 %rename (RATFieldType) GDALRATFieldType;
 typedef enum {
@@ -66,6 +67,12 @@ typedef enum {
     /*! Color Range Alpha Maximum */       GFU_AlphaMax = 17,
     /*! Maximum GFU value */               GFU_MaxCount
 } GDALRATFieldUsage;
+
+%rename (RATTableType) GDALRATTableType;
+typedef enum {
+    /*! Thematic table type */            GRTT_THEMATIC,
+    /*! Athematic table type */           GRTT_ATHEMATIC
+} GDALRATTableType;
 #endif /* CSHARP */
 
 %rename (RasterAttributeTable) GDALRasterAttributeTableShadow;
@@ -176,6 +183,14 @@ public:
 
     void DumpReadable() {
         GDALRATDumpReadable( self, NULL );
+    }
+
+    void SetTableType( GDALRATTableType eTableType ) {
+        GDALRATSetTableType( self, eTableType );
+    }
+
+    GDALRATTableType GetTableType() {
+        return GDALRATGetTableType( self );
     }
 }
 

@@ -33,10 +33,17 @@
 #ifndef TIFVSI_H_INCLUDED
 #define TIFVSI_H_INCLUDED
 
+#include "cpl_port.h"
+#include "cpl_vsi.h"
 #include "tiffio.h"
 
-TIFF* VSI_TIFFOpen(const char* name, const char* mode, VSILFILE* fp);
-VSILFILE* VSI_TIFFGetVSILFile(thandle_t th);
-int VSI_TIFFFlushBufferedWrite(thandle_t th);
+TIFF* VSI_TIFFOpen( const char* name, const char* mode, VSILFILE* fp );
+VSILFILE* VSI_TIFFGetVSILFile( thandle_t th );
+int VSI_TIFFFlushBufferedWrite( thandle_t th );
+int VSI_TIFFHasCachedRanges( thandle_t th );
+void VSI_TIFFSetCachedRanges( thandle_t th, int nRanges,
+                              void ** ppData, // memory pointed by ppData[i] must be kept alive by caller
+                              const vsi_l_offset* panOffsets,
+                              const size_t* panSizes );
 
 #endif // TIFVSI_H_INCLUDED

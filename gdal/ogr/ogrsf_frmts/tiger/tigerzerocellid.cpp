@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  TIGER/Line Translator
  * Purpose:  Implements TigerZeroCellID, providing access to .RTT files.
@@ -30,9 +29,9 @@
 #include "ogr_tiger.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
-#define FILE_CODE       "T"
+static const char FILE_CODE[] = "T";
 
 static const TigerFieldInfo rtT_fields[] = {
   // fieldname    fmt  type OFTType      beg  end  len  bDefine bSet bWrite
@@ -67,5 +66,4 @@ TigerZeroCellID::TigerZeroCellID( OGRTigerDataSource * poDSIn,
 /* -------------------------------------------------------------------- */
 
     AddFieldDefns( psRTInfo, poFeatureDefn );
-
 }

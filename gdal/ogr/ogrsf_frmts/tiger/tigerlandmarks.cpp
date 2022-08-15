@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  TIGER/Line Translator
  * Purpose:  Implements TigerLandmarks, providing access to .RT7 files.
@@ -30,9 +29,9 @@
 #include "ogr_tiger.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
-#define FILE_CODE "7"
+static const char FILE_CODE[] = "7";
 
 static const TigerFieldInfo rt7_2002_fields[] = {
   // fieldname    fmt  type OFTType      beg  end  len  bDefine bSet bWrite
@@ -77,7 +76,7 @@ static const TigerRecordInfo rt7_info =
 
 TigerLandmarks::TigerLandmarks( OGRTigerDataSource * poDSIn,
                                 CPL_UNUSED const char * pszPrototypeModule )
-  : TigerPoint(FALSE, NULL, FILE_CODE)
+  : TigerPoint(FALSE, nullptr, FILE_CODE)
 {
     poDS = poDSIn;
     poFeatureDefn = new OGRFeatureDefn( "Landmarks" );

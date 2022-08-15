@@ -51,8 +51,6 @@ OGRLayerH CPL_DLL CPL_STDCALL GNMGetPath (GNMNetworkH hNet, GNMGFID nStartFID,
                               GNMGFID nEndFID, GNMGraphAlgorithmType eAlgorithm,
                               char** papszOptions);
 
-
-
 CPLErr CPL_DLL CPL_STDCALL GNMConnectFeatures (GNMGenericNetworkH hNet,
                                                GNMGFID nSrcFID, GNMGFID nTgtFID,
                                                GNMGFID nConFID, double dfCost,
@@ -65,7 +63,6 @@ CPLErr CPL_DLL CPL_STDCALL GNMDisconnectFeatures (GNMGenericNetworkH hNet,
 
 CPLErr CPL_DLL CPL_STDCALL GNMDisconnectFeaturesWithId(GNMGenericNetworkH hNet,
                                                        GNMGFID nFID);
-
 
 CPLErr CPL_DLL CPL_STDCALL GNMReconnectFeatures (GNMGenericNetworkH hNet,
                                                  GNMGFID nSrcFID, GNMGFID nTgtFID,
@@ -94,6 +91,10 @@ CPLErr CPL_DLL CPL_STDCALL GNMChangeBlockState (GNMGenericNetworkH hNet,
 
 CPLErr CPL_DLL CPL_STDCALL GNMChangeAllBlockState (GNMGenericNetworkH hNet,
                                                    int bIsBlock);
+
+GNMNetworkH CPL_DLL CPL_STDCALL GNMCastToNetwork(GDALMajorObjectH hBase);
+
+GNMGenericNetworkH CPL_DLL CPL_STDCALL GNMCastToGenericNetwork(GDALMajorObjectH hBase);
 
 CPL_C_END
 

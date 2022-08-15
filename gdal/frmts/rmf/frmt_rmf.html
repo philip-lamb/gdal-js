@@ -10,7 +10,7 @@
 RMF is a simple tiled raster format used in the GIS "Integration" and
 "Panorama" GIS. The format itself has very poor capabilities.<p>
 
-There are two flavours of RMF called MTW and RSW. MTW supports 16-bit integer
+There are two flavors of RMF called MTW and RSW. MTW supports 16-bit integer
 and 32/64-bit floating point data in a single channel and aimed to store DEM
 data. RSW is a general purpose raster. It supports single channel colormapped
 or three channel RGB images. Only 8-bit data can be stored in RSW. Simple
@@ -40,9 +40,19 @@ georeferencing can be provided for both image types.<p>
 
 	<li> <b>BLOCKYSIZE=n</b>: Set tile height.  Tile height defaults to 256.<p>
 
-        <li> <b>RMFHUGE=NO/YES/IF_SAFER</b>: Creation of huge RMF file (Supported by GIS Panorama since v11). Defaults to NO.<p>
+	<li> <b>RMFHUGE=NO/YES/IF_SAFER</b>: Creation of huge RMF file (Supported by GIS Panorama since v11). Defaults to NO.<p>
 
-</ul>
+	<li> <b>COMPRESS=NONE/LZW/JPEG/RMF_DEM</b>: (From GDAL 2.4) Compression type. Defaults to NONE.
+		Note: JPEG compression supported only with RGB (3-band) Byte datasets.
+		RMF_DEM compression supported only with Int32 one channel MTW datasets.<p>
+
+	<li> <b>JPEG_QUALITY</b>: (From GDAL 2.4) JPEG quality 1-100. Defaults to 75.<p>
+
+	<li><p><b>NUM_THREADS=number_of_threads/ALL_CPUS</b>: (From GDAL 2.4)
+	Enable multi-threaded compression by specifying the number of worker threads.
+	Default is compression in the main thread.</p></li>
+
+	</ul>
 
 <h2>See Also:</h2>
 

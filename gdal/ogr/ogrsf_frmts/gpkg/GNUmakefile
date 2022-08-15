@@ -13,7 +13,11 @@ ifeq ($(SQLITE_HAS_COLUMN_METADATA),yes)
 CPPFLAGS +=  -DSQLITE_HAS_COLUMN_METADATA
 endif
 
-CPPFLAGS := -I.. -I../sqlite -I../../../frmts/mem $(SQLITE_INC) $(CPPFLAGS)
+ifeq ($(HAVE_RASTERLITE2),yes)
+CPPFLAGS +=  -DHAVE_RASTERLITE2 $(RASTERLITE2_CFLAGS)
+endif
+
+CPPFLAGS := -I.. -I../sqlite -I../../../frmts/mem -I../../../frmts $(SQLITE_INC) $(CPPFLAGS)
 
 default: $(O_OBJ:.o=.$(OBJ_EXT))
 

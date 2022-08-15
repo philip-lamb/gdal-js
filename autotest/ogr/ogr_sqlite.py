@@ -41,7 +41,9 @@ if os.path.basename(sys.argv[0]) == os.path.basename(__file__):
 
 sys.path.append( '../pymod' )
 
-from osgeo import ogr, osr, gdal
+from osgeo import gdal
+from osgeo import ogr
+from osgeo import osr
 import gdaltest
 import ogrtest
 
@@ -642,7 +644,7 @@ def ogr_sqlite_13():
     gdaltest.sl_lyr = gdaltest.sl_ds.CreateLayer( 'wgs84layer_approx', srs = srs )
 
     # Must still be 1
-    sql_lyr = gdaltest.sl_ds.ExecuteSQL("SELECT COUNT(*) AS count FROM spatial_ref_sys");
+    sql_lyr = gdaltest.sl_ds.ExecuteSQL("SELECT COUNT(*) AS count FROM spatial_ref_sys")
     feat = sql_lyr.GetNextFeature()
     if  feat.GetFieldAsInteger('count') != 1:
         return 'fail'
@@ -948,7 +950,7 @@ def ogr_sqlite_18():
         print(wkt)
         return 'fail'
 
-    sql_lyr = ds.ExecuteSQL("SELECT * FROM spatial_ref_sys ORDER BY srid DESC LIMIT 1");
+    sql_lyr = ds.ExecuteSQL("SELECT * FROM spatial_ref_sys ORDER BY srid DESC LIMIT 1")
     feat = sql_lyr.GetNextFeature()
     if feat.GetField('auth_name') != 'OGR' or \
        feat.GetField('proj4text').find('+proj=vandg') != 0:
@@ -996,6 +998,44 @@ def ogr_sqlite_19():
         gdaltest.post_reason('did not get expected SRS count')
         print(nb_srs)
         return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Create a SpatiaLite DB with INIT_WITH_EPSG=NO
+
+def ogr_sqlite_19_bis():
+
+    if gdaltest.sl_ds is None:
+        return 'skip'
+
+    if gdaltest.has_spatialite == False:
+        return 'skip'
+
+    if int(gdaltest.spatialite_version[0:gdaltest.spatialite_version.find('.')]) < 4:
+        return 'skip'
+
+    ds = ogr.GetDriverByName( 'SQLite' ).CreateDataSource( '/vsimem/spatialite_test_without_epsg.db', options = ['SPATIALITE=YES', 'INIT_WITH_EPSG=NO'] )
+
+    # EPSG:26632 has a ' character in it's WKT representation
+    srs = osr.SpatialReference()
+    srs.SetFromUserInput('EPSG:26632')
+    ds.CreateLayer( 'test', srs = srs )
+
+    ds = None
+    ds = ogr.Open('/vsimem/spatialite_test_without_epsg.db')
+
+    sql_lyr = ds.ExecuteSQL( "select count(*) from spatial_ref_sys" )
+    feat = sql_lyr.GetNextFeature()
+    nb_srs = feat.GetFieldAsInteger(0)
+    ds.ReleaseResultSet( sql_lyr )
+
+    if nb_srs != 1:
+        gdaltest.post_reason('did not get expected SRS count')
+        print(nb_srs)
+        return 'fail'
+
+    gdal.Unlink('/vsimem/spatialite_test_without_epsg.db')
 
     return 'success'
 
@@ -1225,6 +1265,13 @@ def ogr_sqlite_25():
     if gdaltest.sl_ds is None:
         return 'skip'
 
+    sql_lyr = gdaltest.sl_ds.ExecuteSQL("SELECT sqlite_version()")
+    feat = sql_lyr.GetNextFeature()
+    ogrtest.sqlite_version = feat.GetFieldAsString(0)
+    print('SQLite version : %s' % ogrtest.sqlite_version)
+    feat = None
+    gdaltest.sl_ds.ReleaseResultSet(sql_lyr)
+
     try:
         drv = gdal.GetDriverByName( 'HTTP' )
     except:
@@ -1232,13 +1279,6 @@ def ogr_sqlite_25():
 
     if drv is None:
         return 'skip'
-
-    sql_lyr = gdaltest.sl_ds.ExecuteSQL("SELECT sqlite_version()")
-    feat = sql_lyr.GetNextFeature()
-    ogrtest.sqlite_version = feat.GetFieldAsString(0)
-    print('SQLite version : %s' % ogrtest.sqlite_version)
-    feat = None
-    gdaltest.sl_ds.ReleaseResultSet(sql_lyr)
 
     # Check that we have SQLite VFS support
     gdal.PushErrorHandler('CPLQuietErrorHandler')
@@ -2107,9 +2147,19 @@ def ogr_spatialite_8():
     lyr.CreateField(ogr.FieldDefn('foo', ogr.OFTString))
     f = ogr.Feature(lyr.GetLayerDefn())
     f.SetField('foo', 'bar')
+    f.SetGeomFieldDirectly(0, ogr.CreateGeometryFromWkt('POINT(0 -1)'))
+    f.SetGeomFieldDirectly(1, ogr.CreateGeometryFromWkt('LINESTRING(0 -1,2 3)'))
+    lyr.CreateFeature(f)
+    lyr.ResetReading()
+    f = lyr.GetNextFeature()
+    if f.GetGeomFieldRef('geom1').ExportToWkt() != 'POINT (0 -1)' or \
+       f.GetGeomFieldRef('geom2').ExportToWkt() != 'LINESTRING (0 -1,2 3)':
+        gdaltest.post_reason('failed')
+        f.DumpReadable()
+        return 'fail'
     f.SetGeomFieldDirectly(0, ogr.CreateGeometryFromWkt('POINT(0 1)'))
     f.SetGeomFieldDirectly(1, ogr.CreateGeometryFromWkt('LINESTRING(0 1,2 3)'))
-    lyr.CreateFeature(f)
+    lyr.SetFeature(f)
     f = None
     ds.ExecuteSQL('CREATE VIEW view_test_geom1 AS SELECT OGC_FID AS pk_id, foo, geom1 AS renamed_geom1 FROM test')
 
@@ -2903,7 +2953,7 @@ def ogr_sqlite_38():
     f = lyr.GetNextFeature()
     if f.GetField('field_string') != 'a\'b' or f.GetField('field_int') != 123 or \
        f.GetField('field_real') != 1.23 or \
-       f.IsFieldSet('field_nodefault') or not f.IsFieldSet('field_datetime')  or \
+       not f.IsFieldNull('field_nodefault') or not f.IsFieldSet('field_datetime')  or \
        f.GetField('field_datetime2') != '2015/06/30 12:34:56' or \
        f.GetField('field_datetime4') != '2015/06/30 12:34:56.123' or \
        not f.IsFieldSet('field_datetime3') or \
@@ -3385,6 +3435,88 @@ def ogr_sqlite_43():
     return 'success'
 
 ###############################################################################
+# Test reading/writing StringList, etc..
+
+def ogr_sqlite_44():
+
+    if gdaltest.sl_ds is None:
+        return 'skip'
+
+    gdal.FileFromMemBuffer('/vsimem/ogr_sqlite_44.csvt', 'JsonStringList,JsonIntegerList,JsonInteger64List,JsonRealList,WKT\n')
+    gdal.FileFromMemBuffer('/vsimem/ogr_sqlite_44.csv',
+"""stringlist,intlist,int64list,reallist,WKT
+"[""a"",null]","[1]","[1234567890123]","[0.125]",
+""")
+
+    gdal.VectorTranslate('/vsimem/ogr_sqlite_44.sqlite', '/vsimem/ogr_sqlite_44.csv', format = 'SQLite' )
+    gdal.VectorTranslate('/vsimem/ogr_sqlite_44_out.csv', '/vsimem/ogr_sqlite_44.sqlite', format = 'CSV', layerCreationOptions = ['CREATE_CSVT=YES', 'LINEFORMAT=LF'])
+
+    f = gdal.VSIFOpenL('/vsimem/ogr_sqlite_44_out.csv', 'rb')
+    if f is None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    data = gdal.VSIFReadL(1, 10000, f).decode('ascii')
+    gdal.VSIFCloseL(f)
+
+    if data.find('stringlist,intlist,int64list,reallist,wkt\n"[ ""a"", """" ]",[ 1 ],[ 1234567890123 ],[ 0.125') != 0:
+        gdaltest.post_reason('fail')
+        print(data)
+        return 'fail'
+
+    f = gdal.VSIFOpenL('/vsimem/ogr_sqlite_44_out.csvt', 'rb')
+    data = gdal.VSIFReadL(1, 10000, f).decode('ascii')
+    gdal.VSIFCloseL(f)
+
+    if data.find('JSonStringList,JSonIntegerList,JSonInteger64List,JSonRealList') != 0:
+        gdaltest.post_reason('fail')
+        print(data)
+        return 'fail'
+
+    gdal.Unlink('/vsimem/ogr_sqlite_44.csv')
+    gdal.Unlink('/vsimem/ogr_sqlite_44.csvt')
+    gdal.Unlink('/vsimem/ogr_sqlite_44.sqlite')
+    gdal.Unlink('/vsimem/ogr_sqlite_44_out.csv')
+    gdal.Unlink('/vsimem/ogr_sqlite_44_out.csvt')
+
+    return 'success'
+
+###############################################################################
+# Test WAL and opening in read-only (#6776)
+
+def ogr_sqlite_45():
+
+    if gdaltest.sl_ds is None:
+        return 'skip'
+    
+    ds = ogr.GetDriverByName('SQLite').CreateDataSource('tmp/ogr_sqlite_45.db')
+    sql_lyr = ds.ExecuteSQL('PRAGMA journal_mode = WAL')
+    ds.ReleaseResultSet(sql_lyr)
+    sql_lyr = ds.ExecuteSQL('SELECT * FROM sqlite_master')
+    ds.ReleaseResultSet(sql_lyr)
+    if not os.path.exists('tmp/ogr_sqlite_45.db-wal'):
+        gdaltest.post_reason('fail')
+        return 'fail'
+    shutil.copy('tmp/ogr_sqlite_45.db', 'tmp/ogr_sqlite_45_bis.db')
+    shutil.copy('tmp/ogr_sqlite_45.db-shm', 'tmp/ogr_sqlite_45_bis.db-shm')
+    shutil.copy('tmp/ogr_sqlite_45.db-wal', 'tmp/ogr_sqlite_45_bis.db-wal')
+    ds = None
+    if os.path.exists('tmp/ogr_sqlite_45.db-wal'):
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    ds = ogr.Open('tmp/ogr_sqlite_45_bis.db')
+    ds = None
+    if os.path.exists('tmp/ogr_sqlite_45_bis.db-wal'):
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    gdal.Unlink('tmp/ogr_sqlite_45.db')
+    gdal.Unlink('tmp/ogr_sqlite_45_bis.db')
+
+    return 'success'
+
+
+###############################################################################
 # Test creating unsupported geometry types
 
 def ogr_spatialite_11():
@@ -3574,6 +3706,7 @@ gdaltest_list = [
     ogr_sqlite_17,
     ogr_sqlite_18,
     ogr_sqlite_19,
+    ogr_sqlite_19_bis,
     ogr_spatialite_2,
     ogr_spatialite_3,
     ogr_spatialite_4,
@@ -3597,6 +3730,8 @@ gdaltest_list = [
     ogr_sqlite_41,
     ogr_sqlite_42,
     ogr_sqlite_43,
+    ogr_sqlite_44,
+    ogr_sqlite_45,
     ogr_spatialite_11,
     ogr_sqlite_cleanup,
     ogr_sqlite_without_spatialite,
@@ -3604,7 +3739,7 @@ gdaltest_list = [
 
 disabled_gdaltest_list = [
     ogr_sqlite_1,
-    ogr_sqlite_41,
+    ogr_sqlite_45,
     ogr_sqlite_cleanup,
 ]
 

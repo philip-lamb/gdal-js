@@ -1,6 +1,5 @@
 # USER CONFIGURATION
-# END OF USER CONFIGURATION 
-
+# END OF USER CONFIGURATION
 
 include ../../GDALmake.opt
 
@@ -9,10 +8,12 @@ OBJ	=	postgisrasterdriver.o postgisrasterdataset.o postgisrasterrasterband.o pos
 
 CPPFLAGS	:= -I ../mem -I ../vrt $(XTRA_OPT) $(PG_INC)  $(CPPFLAGS)
 
+CXXFLAGS        :=      $(WARN_EFFCPLUSPLUS) $(WARN_OLD_STYLE_CAST) $(CXXFLAGS)
+
 default:	$(OBJ:.o=.$(OBJ_EXT))
 
 $(O_OBJ):       postgisraster.h ../vrt/vrtdataset.h ../mem/memdataset.h
- 
+
 clean:
 	rm -f *.o $(O_OBJ)
 

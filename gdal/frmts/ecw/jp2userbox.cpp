@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  GDAL ECW Driver
  * Purpose:  JP2UserBox implementation - arbitrary box read/write.
@@ -27,9 +26,12 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+// ncsjpcbuffer.h needs the min and max macros.
+#undef NOMINMAX
+
 #include "gdal_ecw.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 #if defined(HAVE_COMPRESS)
 
@@ -39,7 +41,7 @@ CPL_CVSID("$Id$");
 
 JP2UserBox::JP2UserBox()
 {
-    pabyData = NULL;
+    pabyData = nullptr;
     nDataLength = 0;
 
     m_nTBox = 0;
@@ -52,10 +54,10 @@ JP2UserBox::JP2UserBox()
 JP2UserBox::~JP2UserBox()
 
 {
-    if( pabyData != NULL )
+    if( pabyData != nullptr )
     {
         CPLFree( pabyData );
-        pabyData = NULL;
+        pabyData = nullptr;
     }
 }
 
@@ -66,7 +68,7 @@ JP2UserBox::~JP2UserBox()
 void JP2UserBox::SetData( int nLengthIn, const unsigned char *pabyDataIn )
 
 {
-    if( pabyData != NULL )
+    if( pabyData != nullptr )
         CPLFree( pabyData );
 
     nDataLength = nLengthIn;

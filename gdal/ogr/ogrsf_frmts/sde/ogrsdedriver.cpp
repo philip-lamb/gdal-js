@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  OpenGIS Simple Features Reference Implementation
  * Purpose:  Implements OGRSDEDriver class.
@@ -32,7 +31,7 @@
 #include "ogr_sde.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                            ~OGRSDEDriver()                            */
@@ -50,7 +49,7 @@ OGRSDEDriver::~OGRSDEDriver()
 const char *OGRSDEDriver::GetName()
 
 {
-    return "SDE";
+    return "OGR_SDE";
 }
 
 /************************************************************************/
@@ -124,5 +123,9 @@ void RegisterOGRSDE()
     if( !GDAL_CHECK_VERSION("OGR SDE") )
         return;
 
-    OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver( new OGRSDEDriver );
+    OGRSFDriver* poDriver = new OGRSDEDriver;
+
+    poDriver->SetMetadataItem( GDAL_DMD_CONNECTION_PREFIX, "SDE:");
+
+    OGRSFDriverRegistrar::GetRegistrar()->RegisterDriver( poDriver );
 }

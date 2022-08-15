@@ -1,11 +1,10 @@
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 
-RUN apt-get update && apt-get -y install \ 
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install \ 
     build-essential \
     cmake \
     autoconf \
-    python2.7 \
-    python \
+    python3 \
     nodejs \
     default-jre \
     libtool \
@@ -14,19 +13,17 @@ RUN apt-get update && apt-get -y install \
     zip
 
 WORKDIR /opt
-# Unfortunately, this repo has no versioning that I could detect, either via tags or branches
-# One option would be to pin to a particular commit, but that would be arbitrary, and it seems
-# that the interface provided is relatively stable because this is a core piece of the
-# Emscripten ecosystem. Given that, I decided to run the risk of behavior changing over time
-# by not pinning.
 RUN git clone https://github.com/emscripten-core/emsdk.git
 
 WORKDIR /opt/emsdk
 
+# Emscripten's version selection / activation was flaky the last time I tried it, but
+# leaving this variable in place in case it's ever possible to resurrect it.
+# In that case, replace "latest" below with "${EMSCRIPTEN_V}".
 ARG EMSCRIPTEN_V
 
-RUN ./emsdk update-tags && ./emsdk install ${EMSCRIPTEN_V}
-RUN ./emsdk activate ${EMSCRIPTEN_V}
+RUN ./emsdk install latest
+RUN ./emsdk activate latest
 
 RUN git config --global user.name 'Nobody'
 RUN git config --global user.email 'nobody@nowhere.nope'

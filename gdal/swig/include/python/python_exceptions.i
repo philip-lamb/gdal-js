@@ -24,11 +24,15 @@ PythonBindingErrorHandler(CPLErr eclass, int code, const char *msg )
   }
 
   /*
-  ** We do not want to interfere with warnings or debug messages since
+  ** We do not want to interfere with non-failure messages since
   ** they won't be translated into exceptions.
   */
-  if (eclass == CE_Warning || eclass == CE_Debug ) {
+  else if (eclass != CE_Failure ) {
     pfnPreviousHandler(eclass, code, msg );
+  }
+  else {
+    CPLSetThreadLocalConfigOption("__last_error_message", msg);
+    CPLSetThreadLocalConfigOption("__last_error_code", CPLSPrintf("%d", code));
   }
 }
 %}
@@ -47,8 +51,14 @@ void UseExceptions() {
   if( !bUseExceptions )
   {
     bUseExceptions = 1;
+    char* pszNewValue = CPLStrdup(CPLSPrintf("%s %s",
+                   MODULE_NAME,
+                   CPLGetConfigOption("__chain_python_error_handlers", "")));
+    CPLSetConfigOption("__chain_python_error_handlers", pszNewValue);
+    CPLFree(pszNewValue);
+    // if the previous logger was custom, we need the user data available
     pfnPreviousHandler =
-        CPLSetErrorHandler( (CPLErrorHandler) PythonBindingErrorHandler );
+        CPLSetErrorHandlerEx( (CPLErrorHandler) PythonBindingErrorHandler, CPLGetErrorHandlerUserData() );
   }
 }
 
@@ -57,8 +67,23 @@ void DontUseExceptions() {
   CPLErrorReset();
   if( bUseExceptions )
   {
+    const char* pszValue = CPLGetConfigOption("__chain_python_error_handlers", "");
+    if( strncmp(pszValue, MODULE_NAME, strlen(MODULE_NAME)) != 0 ||
+        pszValue[strlen(MODULE_NAME)] != ' ')
+    {
+        CPLError(CE_Failure, CPLE_NotSupported,
+                 "Cannot call %s.DontUseExceptions() at that point since the "
+                 "stack of error handlers is: %s", MODULE_NAME, pszValue);
+        return;
+    }
+    char* pszNewValue = CPLStrdup(pszValue + strlen(MODULE_NAME) + 1);
+    if( pszNewValue[0] == ' ' && pszNewValue[1] == '\0' )
+        pszNewValue = NULL;
+    CPLSetConfigOption("__chain_python_error_handlers", pszNewValue);
+    CPLFree(pszNewValue);
     bUseExceptions = 0;
-    CPLSetErrorHandler( pfnPreviousHandler );
+    // if the previous logger was custom, we need the user data available. Preserve it.
+    CPLSetErrorHandlerEx( pfnPreviousHandler, CPLGetErrorHandlerUserData());
   }
 }
 %}
@@ -80,6 +105,29 @@ template<class T> static T ReturnSame(T x)
     return 0;
 }
 
+static void ClearErrorState()
+{
+    CPLSetThreadLocalConfigOption("__last_error_message", NULL);
+    CPLSetThreadLocalConfigOption("__last_error_code", NULL);
+    CPLErrorReset();
+}
+
+static void StoreLastException() CPL_UNUSED;
+
+static void StoreLastException()
+{
+    const char* pszLastErrorMessage =
+        CPLGetThreadLocalConfigOption("__last_error_message", NULL);
+    const char* pszLastErrorCode =
+        CPLGetThreadLocalConfigOption("__last_error_code", NULL);
+    if( pszLastErrorMessage != NULL && pszLastErrorCode != NULL )
+    {
+        CPLErrorSetState( CE_Failure,
+            static_cast<CPLErrorNum>(atoi(pszLastErrorCode)),
+            pszLastErrorMessage);
+    }
+}
+
 %}
 
 %include exception.i
@@ -87,7 +135,7 @@ template<class T> static T ReturnSame(T x)
 %exception {
 
     if ( bUseExceptions ) {
-        CPLErrorReset();
+        ClearErrorState();
     }
     $action
 %#ifndef SED_HACKS
@@ -98,4 +146,67 @@ template<class T> static T ReturnSame(T x)
       }
     }
 %#endif
+}
+
+%feature("except") Open {
+    if ( bUseExceptions ) {
+        ClearErrorState();
+    }
+    $action
+%#ifndef SED_HACKS
+    if( result == NULL && bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+%#endif
+    if( result != NULL && bUseExceptions ) {
+        StoreLastException();
+%#ifdef SED_HACKS
+        bLocalUseExceptionsCode = FALSE;
+%#endif
+    }
+}
+
+%feature("except") OpenShared {
+    if ( bUseExceptions ) {
+        ClearErrorState();
+    }
+    $action
+%#ifndef SED_HACKS
+    if( result == NULL && bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+%#endif
+    if( result != NULL && bUseExceptions ) {
+        StoreLastException();
+%#ifdef SED_HACKS
+        bLocalUseExceptionsCode = FALSE;
+%#endif
+    }
+}
+
+%feature("except") OpenEx {
+    if ( bUseExceptions ) {
+        ClearErrorState();
+    }
+    $action
+%#ifndef SED_HACKS
+    if( result == NULL && bUseExceptions ) {
+      CPLErr eclass = CPLGetLastErrorType();
+      if ( eclass == CE_Failure || eclass == CE_Fatal ) {
+        SWIG_exception( SWIG_RuntimeError, CPLGetLastErrorMsg() );
+      }
+    }
+%#endif
+    if( result != NULL && bUseExceptions ) {
+        StoreLastException();
+%#ifdef SED_HACKS
+        bLocalUseExceptionsCode = FALSE;
+%#endif
+    }
 }

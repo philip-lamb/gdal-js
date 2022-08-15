@@ -127,7 +127,7 @@ CPLErr ReadRaster_internal( GDALRasterBandShadow *obj,
   }
   else
   {
-    CPLError(CE_Failure, CPLE_OutOfMemory, "Not enough memory to allocate "CPL_FRMT_GIB" bytes", *buf_size);
+    CPLError(CE_Failure, CPLE_OutOfMemory, "Not enough memory to allocate " CPL_FRMT_GIB " bytes", *buf_size);
     result = CE_Failure;
     *buf = 0;
     *buf_size = 0;
@@ -199,15 +199,22 @@ public:
       GDALGetBlockSize(self, pnBlockXSize, pnBlockYSize);
   }
 
+#if defined(SWIGPYTHON)
+  void GetActualBlockSize(int nXBlockOff, int nYBlockOff, int* pnxvalid, int* pnyvalid, int* pisvalid)
+  {
+    *pisvalid = (GDALGetActualBlockSize(self, nXBlockOff, nYBlockOff, pnxvalid, pnyvalid) == CE_None);
+  }
+#endif
+
   // Preferred name to match C++ API
   /* Interface method added for GDAL 1.7.0 */
   GDALColorInterp GetColorInterpretation() {
-    return GDALGetRasterColorInterpretation( self );
+    return GDALGetRasterColorInterpretation(self);
   }
 
   // Deprecated name
   GDALColorInterp GetRasterColorInterpretation() {
-    return GDALGetRasterColorInterpretation( self );
+    return GDALGetRasterColorInterpretation(self);
   }
 
   // Preferred name to match C++ API
@@ -230,12 +237,12 @@ public:
   }
 
   CPLErr DeleteNoDataValue() {
-    return GDALDeleteRasterNoDataValue( self );
+    return GDALDeleteRasterNoDataValue(self);
   }
 
   /* Interface method added for GDAL 1.7.0 */
   const char* GetUnitType() {
-      return GDALGetRasterUnitType( self );
+      return GDALGetRasterUnitType(self);
   }
 
   /* Interface method added for GDAL 1.8.0 */
@@ -245,7 +252,7 @@ public:
 
   %apply (char **options) { (char **) };
   char** GetRasterCategoryNames( ) {
-    return GDALGetRasterCategoryNames( self );
+    return GDALGetRasterCategoryNames(self);
   }
   %clear (char **);
 
@@ -308,7 +315,7 @@ public:
   }
 
   int GetOverviewCount() {
-    return GDALGetOverviewCount( self );
+    return GDALGetOverviewCount(self);
   }
 
   GDALRasterBandShadow *GetOverview(int i) {
@@ -675,6 +682,45 @@ CPLErr SetDefaultHistogram( double min, double max,
     }
 
 #endif /* #if defined(SWIGPYTHON) */
+
+#if defined(SWIGPYTHON)
+    // Check with other bindings how to return both the integer status and
+    // *pdfDataPct
+
+    %apply (double *OUTPUT) {(double *)};
+    int GetDataCoverageStatus( int nXOff, int nYOff,
+                               int nXSize, int nYSize,
+                               int nMaskFlagStop = 0,
+                               double* pdfDataPct = NULL)
+    {
+        return GDALGetDataCoverageStatus(self, nXOff, nYOff,
+                                         nXSize, nYSize,
+                                         nMaskFlagStop,
+                                         pdfDataPct);
+    }
+    %clear (double *);
+#endif
+
+%apply (int *optional_int) { (GDALDataType *buf_type) };
+CPLErr AdviseRead(  int xoff, int yoff, int xsize, int ysize,
+                    int *buf_xsize = 0, int *buf_ysize = 0,
+                    GDALDataType *buf_type = 0,
+                    char** options = NULL )
+{
+    int nxsize = (buf_xsize==0) ? xsize : *buf_xsize;
+    int nysize = (buf_ysize==0) ? ysize : *buf_ysize;
+    GDALDataType ntype;
+    if ( buf_type != 0 ) {
+      ntype = (GDALDataType) *buf_type;
+    } else {
+      ntype = GDALGetRasterDataType( self );
+    }
+    return GDALRasterAdviseRead(self, xoff, yoff, xsize, ysize,
+                                nxsize, nysize, ntype, options);
+}
+%clear (GDALDataType *buf_type);
+%clear (int band_list, int *pband_list );
+
 
 } /* %extend */
 

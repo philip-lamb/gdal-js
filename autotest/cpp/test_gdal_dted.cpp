@@ -1,44 +1,37 @@
 ///////////////////////////////////////////////////////////////////////////////
-// $Id: test_gdal_dted.cpp,v 1.3 2006/12/06 15:39:13 mloskot Exp $
 //
 // Project:  C++ Test Suite for GDAL/OGR
 // Purpose:  Test DTED support. Ported from gdrivers/dted.py.
 // Author:   Mateusz Loskot <mateusz@loskot.net>
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2006, Mateusz Loskot <mateusz@loskot.net>
 // Copyright (c) 2010, Even Rouault <even dot rouault at mines-paris dot org>
-//  
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Library General Public
 // License as published by the Free Software Foundation; either
 // version 2 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Library General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Library General Public
 // License along with this library; if not, write to the
 // Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 ///////////////////////////////////////////////////////////////////////////////
-//
-//  $Log: test_gdal_dted.cpp,v $
-//  Revision 1.3  2006/12/06 15:39:13  mloskot
-//  Added file header comment and copyright note.
-//
-//
-///////////////////////////////////////////////////////////////////////////////
-#include <tut.h> // TUT
-#include <tut_gdal.h>
-#include <gdal_common.h>
-#include <gdal.h> // GDAL
+
+#include "gdal_unit_test.h"
+
+#include <cpl_string.h>
 #include <gdal_alg.h>
 #include <gdal_priv.h>
-#include <cpl_string.h>
-#include <sstream> // C++
+#include <gdal.h>
+
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -273,7 +266,7 @@ namespace tut
     {
         // Index of test file being tested
         const std::size_t fileIdx = 0;
-        
+
         std::string file(data_ + SEP);
         file += rasters_.at(fileIdx).file_;
 

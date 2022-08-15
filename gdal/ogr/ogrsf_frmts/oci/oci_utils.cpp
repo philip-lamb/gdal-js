@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  Oracle Spatial Driver
  * Purpose:  Various low level utility functions for OCI connections.
@@ -29,5 +28,4 @@
 
 #include "ogr_oci.h"
 
-CPL_CVSID("$Id$");
-
+CPL_CVSID("$Id$")

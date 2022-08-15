@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  TIGER/Line Translator
  * Purpose:  Implements TigerPIP, providing access to .RTP files.
@@ -30,9 +29,9 @@
 #include "ogr_tiger.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
-#define FILE_CODE "P"
+static const char FILE_CODE[] = "P";
 
 static const TigerFieldInfo rtP_2002_fields[] = {
   // fieldname    fmt  type OFTType      beg  end  len  bDefine bSet bWrite
@@ -67,14 +66,13 @@ static const TigerRecordInfo rtP_info =
     44
   };
 
-
 /************************************************************************/
 /*                              TigerPIP()                              */
 /************************************************************************/
 
 TigerPIP::TigerPIP( OGRTigerDataSource * poDSIn,
                     CPL_UNUSED const char * pszPrototypeModule )
-  : TigerPoint(TRUE, NULL, FILE_CODE)
+  : TigerPoint(TRUE, nullptr, FILE_CODE)
 {
     poDS = poDSIn;
     poFeatureDefn = new OGRFeatureDefn( "PIP" );

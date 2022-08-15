@@ -29,27 +29,45 @@
 #  DEALINGS IN THE SOFTWARE.
 ###############################################################################
 
+set -eu
+
+SCRIPT_DIR=$(dirname "$0")
+case $SCRIPT_DIR in
+    "/"*)
+        ;;
+    ".")
+        SCRIPT_DIR=$(pwd)
+        ;;
+    *)
+        SCRIPT_DIR=$(pwd)"/"$(dirname "$0")
+        ;;
+esac
+GDAL_ROOT=$SCRIPT_DIR/..
+cd "$GDAL_ROOT"
+
 if ! test -d fix_typos; then
     # Get our fork of codespell that adds --words-white-list and full filename support for -S option
     mkdir fix_typos
-    cd fix_typos
-    git clone https://github.com/rouault/codespell
-    cd codespell
-    git checkout gdal_improvements
-    cd ..
-    # Aggregate base dictionary + QGIS one + Debian Lintian one
-    curl https://raw.githubusercontent.com/qgis/QGIS/master/scripts/spelling.dat | sed "s/:/->/" | grep -v "colour->" | grep -v "colours->" > qgis.txt
-    curl https://anonscm.debian.org/cgit/lintian/lintian.git/plain/data/spelling/corrections| grep "||" | grep -v "#" | sed "s/||/->/" > debian.txt
-    cat codespell/data/dictionary.txt qgis.txt debian.txt | awk 'NF' > gdal_dict.txt
-    echo "difered->deferred" >> gdal_dict.txt
-    echo "differed->deferred" >> gdal_dict.txt
-    cd ..
+    (cd fix_typos
+     git clone https://github.com/rouault/codespell
+     (cd codespell && git checkout gdal_improvements)
+     # Aggregate base dictionary + QGIS one + Debian Lintian one
+     curl https://raw.githubusercontent.com/qgis/QGIS/master/scripts/spelling.dat | sed "s/:/->/" | grep -v "colour->" | grep -v "colours->" > qgis.txt
+     curl https://anonscm.debian.org/cgit/lintian/lintian.git/plain/data/spelling/corrections| grep "||" | grep -v "#" | sed "s/||/->/" > debian.txt
+     cat codespell/data/dictionary.txt qgis.txt debian.txt | awk 'NF' > gdal_dict.txt
+     echo "difered->deferred" >> gdal_dict.txt
+     echo "differed->deferred" >> gdal_dict.txt
+     grep -v 404 < gdal_dict.txt > gdal_dict.txt.tmp
+     mv gdal_dict.txt.tmp gdal_dict.txt
+    )
 fi
 
 EXCLUDED_FILES="*/.svn*,configure,config.status,config.sub,*/autom4te.cache/*"
 EXCLUDED_FILES="$EXCLUDED_FILES,*/hdf-eos/*,teststream.out,ogrogdilayer.cpp"
 EXCLUDED_FILES="$EXCLUDED_FILES,*/doc/br/*,*/data/*,figures.mp,*/tmp/*,*/ruby/*"
 EXCLUDED_FILES="$EXCLUDED_FILES,*/fix_typos/*,fix_typos.sh,*.eps,geopackage_aspatial.html"
+EXCLUDED_FILES="$EXCLUDED_FILES,*/kdu_cache_wrapper.h,*/PublicDecompWT/*,*/man/*,./html/*"
+EXCLUDED_FILES="$EXCLUDED_FILES,PROVENANCE.TXT,libtool,ltmain.sh,libtool.m4,./m4/*"
 WORDS_WHITE_LIST="poSession,FIDN,TRAFIC,HTINK,repID,oCurr,INTREST,oPosition"
 WORDS_WHITE_LIST="$WORDS_WHITE_LIST,CPL_SUPRESS_CPLUSPLUS,SRP_NAM,ADRG_NAM,'SRP_NAM,AuxilaryTarget"
 # IRIS driver metadata item names: FIXME ?
@@ -60,7 +78,14 @@ WORDS_WHITE_LIST="$WORDS_WHITE_LIST,JBUF_PASS_THRU"
 WORDS_WHITE_LIST="$WORDS_WHITE_LIST,IS_WRITEABLE,E_GIF_ERR_NOT_WRITEABLE"
 # libtiff
 WORDS_WHITE_LIST="$WORDS_WHITE_LIST,THRESHHOLD_BILEVEL,THRESHHOLD_HALFTONE,THRESHHOLD_ERRORDIFFUSE"
+# mffdataset.cpp
+WORDS_WHITE_LIST="$WORDS_WHITE_LIST,oUTMorLL"
+# hf2dataset.cpp
+WORDS_WHITE_LIST="$WORDS_WHITE_LIST,fVertPres"
 
-python3 fix_typos/codespell/codespell.py -w -i 3 -q 2 -S $EXCLUDED_FILES \
+python3 fix_typos/codespell/codespell.py -w -i 3 -q 2 -S "$EXCLUDED_FILES" \
     -x scripts/typos_whitelist.txt --words-white-list=$WORDS_WHITE_LIST \
-    -D fix_typos/gdal_dict.txt  ..
+    ../autotest
+python3 fix_typos/codespell/codespell.py -w -i 3 -q 2 -S "$EXCLUDED_FILES" \
+    -x scripts/typos_whitelist.txt --words-white-list=$WORDS_WHITE_LIST \
+    -D ./fix_typos/gdal_dict.txt  .

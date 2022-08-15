@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#******************************************************************************
+# ******************************************************************************
 #  $Id$
 #
 #  Project:  GDAL
 #  Purpose:  Dump JPEG2000 file structure
 #  Author:   Even Rouault, <even dot rouault at spatialys dot com>
 #
-#******************************************************************************
+# ******************************************************************************
 #  Copyright (c) 2015, European Union (European Environment Agency)
 #  Copyright (c) 2015, European Union Satellite Centre
 #
@@ -28,10 +28,11 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
-#******************************************************************************
+# ******************************************************************************
 
 import sys
 from osgeo import gdal
+
 
 def Usage():
     print('Usage:  dump_jp2 [-dump_gmljp2 out.xml|-] [-dump_crsdictionary out.xml|-]')
@@ -49,6 +50,7 @@ def Usage():
     print('                        links to on-disk files.')
 
     return 1
+
 
 def dump_gmljp2(filename, out_gmljp2):
     ds = gdal.Open(filename)
@@ -68,6 +70,7 @@ def dump_gmljp2(filename, out_gmljp2):
         print('INFO: %s written with content of GMLJP2 box' % out_gmljp2)
     return 0
 
+
 def dump_crsdictionary(filename, out_crsdictionary):
     ds = gdal.Open(filename)
     if ds is None:
@@ -79,7 +82,7 @@ def dump_crsdictionary(filename, out_crsdictionary):
     for domain in mdd_list:
         if domain.startswith('xml:'):
             mdd_item = ds.GetMetadata(domain)[0]
-            if mdd_item.find('<Dictionary') >= 0 or mdd_item.find('<gml:Dictionary') >= 0:
+            if '<Dictionary' in mdd_item or '<gml:Dictionary' in mdd_item:
                 if out_crsdictionary == '-':
                     print(mdd_item)
                 else:
@@ -91,6 +94,7 @@ def dump_crsdictionary(filename, out_crsdictionary):
 
     print('No CRS dictionary content found in %s' % filename)
     return 1
+
 
 def extract_all_xml_boxes(filename, prefix):
     ds = gdal.Open(filename)
@@ -127,12 +131,12 @@ def extract_all_xml_boxes(filename, prefix):
                     else:
                         end_gmljp2_link = end_gmljp2_link_double_quote
                 elif end_gmljp2_link_space >= 0:
-                     end_gmljp2_link = end_gmljp2_link_space
+                    end_gmljp2_link = end_gmljp2_link_space
                 elif end_gmljp2_link_double_quote >= 0:
-                     end_gmljp2_link = end_gmljp2_link_double_quote
+                    end_gmljp2_link = end_gmljp2_link_double_quote
                 if end_gmljp2_link >= 0:
                     referenced_box = mdd_item[new_pos + len('gmljp2://xml/'):end_gmljp2_link]
-                    if not (('xml:' + referenced_box) in mdd_list):
+                    if ('xml:' + referenced_box) not in mdd_list:
                         print('Warning: box %s reference box %s, but the latter is not found' % (boxname, referenced_box))
 
                 out_content += mdd_item[pos:new_pos]
@@ -144,10 +148,11 @@ def extract_all_xml_boxes(filename, prefix):
             f.close()
             print('INFO: %s written' % out_filename)
 
-    if len(mdd_list) == 0:
+    if not mdd_list:
         print('No XML box found')
         return 1
     return 0
+
 
 def main():
     i = 1
@@ -159,17 +164,17 @@ def main():
         if sys.argv[i] == "-dump_gmljp2":
             if i >= len(sys.argv) - 1:
                 return Usage()
-            out_gmljp2 = sys.argv[i+1]
+            out_gmljp2 = sys.argv[i + 1]
             i = i + 1
         elif sys.argv[i] == "-dump_crsdictionary":
             if i >= len(sys.argv) - 1:
                 return Usage()
-            out_crsdictionary = sys.argv[i+1]
+            out_crsdictionary = sys.argv[i + 1]
             i = i + 1
         elif sys.argv[i] == "-extract_all_xml_boxes":
             if i >= len(sys.argv) - 1:
                 return Usage()
-            extract_all_xml_boxes_prefix = sys.argv[i+1]
+            extract_all_xml_boxes_prefix = sys.argv[i + 1]
             i = i + 1
         elif sys.argv[i][0] == '-':
             return Usage()
@@ -198,6 +203,7 @@ def main():
         print(s)
 
     return 0
+
 
 if __name__ == '__main__':
     sys.exit(main())

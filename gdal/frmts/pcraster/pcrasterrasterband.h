@@ -58,7 +58,7 @@ private:
                                         void *, int, int, GDALDataType,
                                         GSpacing nPixelSpace,
                                         GSpacing nLineSpace,
-                                        GDALRasterIOExtraArg* psExtraArg);
+                                        GDALRasterIOExtraArg* psExtraArg) override;
 
   //! Assignment operator. NOT IMPLEMENTED.
   PCRasterRasterBand& operator=        (const PCRasterRasterBand&);
@@ -67,12 +67,13 @@ private:
                    PCRasterRasterBand  (const PCRasterRasterBand&);
 
 protected:
-  double           GetNoDataValue      (int* success=NULL);
-  double           GetMinimum          (int* success);
-  double           GetMaximum          (int* success);
+  // cppcheck-suppress functionConst
+  double           GetNoDataValue      (int* success=nullptr) override;
+  double           GetMinimum          (int* success) override;
+  double           GetMaximum          (int* success) override;
 
 public:
-                   PCRasterRasterBand  (PCRasterDataset* dataset);
+  explicit          PCRasterRasterBand  (PCRasterDataset* dataset);
   /* virtual */    ~PCRasterRasterBand ();
 
   //----------------------------------------------------------------------------
@@ -81,9 +82,9 @@ public:
 
   CPLErr           IWriteBlock         (CPL_UNUSED int nBlockXoff,
                                         int nBlockYoff,
-                                        void* buffer);
+                                        void* buffer) override;
 
-  CPLErr           SetNoDataValue      (double no_data);
+  CPLErr           SetNoDataValue      (double no_data) override;
 
   //----------------------------------------------------------------------------
   // ACCESSORS
@@ -91,7 +92,7 @@ public:
 
   CPLErr           IReadBlock          (int nBlockXoff,
                                         int nBlockYoff,
-                                        void* buffer);
+                                        void* buffer) override;
 };
 // } // namespace
 

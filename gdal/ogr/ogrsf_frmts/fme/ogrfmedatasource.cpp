@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  FMEObjects Translator
  * Purpose:  Implementations of the OGRFMEDataSource class.
@@ -39,7 +38,7 @@
 
 const char* kPROVIDERNAME = "FME_OLEDB";
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 #ifdef WIN32
 #define FMEDLL_NAME "fme.dll"
@@ -174,6 +173,8 @@ OGRFMEDataSource::OGRFMEDataSource()
     poUserDirectives = NULL;
 
     bUseCaching = FALSE;
+    poFMEString = NULL;
+    bCoordSysOverride = FALSE;
 }
 
 /************************************************************************/
@@ -600,7 +601,6 @@ int OGRFMEDataSource::Open( const char * pszCompositeName )
 
             psMatchDS = CPLCloneXMLTree( psMatchDS );
             oCacheIndex.Unlock();
-
         }
         else
         {
@@ -1293,9 +1293,7 @@ OGRFeature *OGRFMEDataSource::ProcessFeature( OGRFMELayer *poLayer,
 /* -------------------------------------------------------------------- */
 /*      Translate the geometry.                                         */
 /* -------------------------------------------------------------------- */
-    OGRGeometry      *poOGRGeom = NULL;
-
-    poOGRGeom = ProcessGeometry( poLayer, poSrcFeature,
+    OGRGeometry* poOGRGeom = ProcessGeometry( poLayer, poSrcFeature,
                                  poLayer->GetLayerDefn()->GetGeomType() );
     if( poOGRGeom != NULL )
         poFeature->SetGeometryDirectly( poOGRGeom );
@@ -1515,7 +1513,6 @@ IFMESession *OGRFMEDataSource::AcquireSession()
             CPLError( CE_Warning, CPLE_AppDefined,
                       "Something has gone wonky with createStringArray() on the IFMESession.\n"
                       "Is it possible you built with gcc 3.2 on Linux?  This seems problematic." );
-
         }
         else
         {
@@ -1575,7 +1572,7 @@ void OGRFMEDataSource::ReleaseSession()
 /************************************************************************/
 /*                           SerializeToXML()                           */
 /*                                                                      */
-/*      Convert the information about this datasource, and it's         */
+/*      Convert the information about this datasource, and its          */
 /*      layers into an XML format that can be stored in the             */
 /*      persistent feature cache index.                                 */
 /************************************************************************/
@@ -1699,10 +1696,10 @@ OGRFMEDataSource::FME2OGRSpatialRef( const char *pszCoordsys )
     poSession->coordSysManager()->getCoordSysAsOGCDef(
         pszCoordsys, *poOGCDef );
 
-    char *pszWKT = (char *) poOGCDef->data();
+    const char *pszWKT = poOGCDef->data();
     OGRSpatialReference oSRS;
 
-    if( oSRS.importFromWkt( &pszWKT ) == OGRERR_NONE )
+    if( oSRS.importFromWkt( pszWKT ) == OGRERR_NONE )
     {
         poSession->destroyString( poOGCDef );
         return oSRS.Clone();

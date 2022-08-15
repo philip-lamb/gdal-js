@@ -1,4 +1,3 @@
-
 include GDALmake.opt
 
 GDAL_OBJ	=	$(GDAL_ROOT)/frmts/o/*.o \
@@ -22,6 +21,10 @@ ifeq ($(GNM_ENABLED),yes)
    GDAL_OBJ += $(GDAL_ROOT)/gnm/*.o $(GDAL_ROOT)/gnm/gnm_frmts/o/*.o
 endif
 
+ifeq ($(HAVE_LERC),yes)
+   GDAL_OBJ += $(GDAL_ROOT)/third_party/o/*.o
+endif
+
 include ./ogr/file.lst
 GDAL_OBJ += $(addprefix ./ogr/,$(OBJ))
 
@@ -43,6 +46,13 @@ force-lib:
 	$(LD_SHARED) $(GDAL_SLIB_SONAME) $(GDAL_OBJ) $(GDAL_LIBS) $(LDFLAGS) $(LIBS) \
 		-o $(GDAL_SLIB)
 
+static-lib: lib-dependencies GDALmake.opt
+	$(MAKE) static-lib-stage2
+
+static-lib-stage2: $(GDAL_OBJ)
+	rm -f libgdal.a
+	$(AR) r $(GDAL_LIB) $(GDAL_OBJ)
+
 $(GDAL_LIB):	$(GDAL_OBJ) GDALmake.opt
 	rm -f libgdal.a
 	$(AR) r $(GDAL_LIB) $(GDAL_OBJ)
@@ -53,7 +63,7 @@ $(GDAL_SLIB):	$(GDAL_OBJ) $(GDAL_LIB)
 		-o $(GDAL_SLIB)
 
 $(LIBGDAL):	$(GDAL_OBJ:.o=.lo)
-	$(LD) $(LDFLAGS) $(LIBS) -o $@ $(GDAL_OBJ:.o=.lo) \
+	$(LD) $(LDFLAGS) $(LIBS) -o $@ $(sort $(wildcard $(GDAL_OBJ:.o=.lo))) \
 	    -rpath $(INST_LIB) \
 	    -no-undefined \
 	    -version-info $(LIBGDAL_CURRENT):$(LIBGDAL_REVISION):$(LIBGDAL_AGE)
@@ -61,33 +71,41 @@ ifeq ($(MACOSX_FRAMEWORK),yes)
 	install_name_tool -id ${OSX_VERSION_FRAMEWORK_PREFIX}/GDAL .libs/libgdal.dylib
 endif
 
-check-lib:	port-target core-target frmts-target ogr-target gnm-target appslib-target
+lib-dependencies:	port-target core-target frmts-target third-party-target ogr-target gnm-target appslib-target
+
+check-lib:	lib-dependencies
 	$(MAKE) $(LIBGDAL-yes)
 
-appslib-target:
+generate_gdal_version_h:
+	(cd gcore; $(MAKE) generate_gdal_version_h)
+
+appslib-target: generate_gdal_version_h
 	(cd apps; $(MAKE) appslib)
 
 port-target:
 	(cd port; $(MAKE))
 
-ogr-target:
+ogr-target: generate_gdal_version_h
 	(cd ogr; $(MAKE) lib )
 
 ifeq ($(GNM_ENABLED),yes)
-gnm-target:
+gnm-target: generate_gdal_version_h
 	(cd gnm; $(MAKE) lib )
 else
 gnm-target:	;
 endif
 
-core-target:
+core-target: generate_gdal_version_h
 	(cd gcore; $(MAKE))
 	(cd alg; $(MAKE))
 
-frmts-target:
+frmts-target: generate_gdal_version_h
 	(cd frmts; $(MAKE))
 
-ogr-all:
+third-party-target: generate_gdal_version_h
+	(cd third_party; $(MAKE))
+
+ogr-all: generate_gdal_version_h
 	(cd ogr; $(MAKE) all)
 
 apps-target:	lib-target
@@ -109,6 +127,7 @@ clean:	lclean
 	(cd gnm; $(MAKE) clean)
 	(cd gcore; $(MAKE) clean)
 	(cd frmts; $(MAKE) clean)
+	(cd third_party; $(MAKE) clean)
 	(cd alg; $(MAKE) clean)
 	(cd apps; $(MAKE) clean)
 ifneq ($(BINDINGS),)
@@ -133,11 +152,11 @@ dist-clean:	clean
 config:	configure
 	./configure
 
-configure:	configure.in aclocal.m4
-	autoconf
-
 GDALmake.opt:	GDALmake.opt.in config.status
 	./config.status
+
+config.status:  configure
+	./config.status --recheck
 
 docs:
 	(cd html; rm -f *.*)
@@ -149,24 +168,32 @@ docs:
 	(cd doc/ru ; doxygen ; cp html/*.* ../../html/. )
 	(cd doc/br ; doxygen ; cp html/*.* ../../html/. )
 # Generate HTML docs
-	doxygen Doxyfile
+# Current DoxygenLayout.xml works only with Doxygen >= 1.8
+	@if [ `doxygen --version | awk -F . '{print $$1}'` -eq "1" ] && [ `doxygen --version | awk -F . '{print $$2}'` -lt "8" ]; then \
+	  echo "Using deprecated doxygen version. Removing custom layout"; \
+	  (cat Doxyfile; echo "LAYOUT_FILE=/dev/null") | doxygen -; \
+	else \
+	  doxygen Doxyfile; \
+	fi
 	cp data/gdalicon.png html
 	cp doc/images/*.* html
 	cp doc/grid/*.png html
-	cp frmts/*.html frmts/*/frmt_*.html html
+	cp frmts/*.html frmts/*/frmt_*.html frmts/*/drv_*.html html
 	cp frmts/openjpeg/*.xml html
 	cp frmts/wms/frmt_*.xml html
+	cp ogr/ogrsf_frmts/*/frmt_*.html html
 	cp ogr/ogrsf_frmts/*/drv_*.html html
 	cp ogr/ogrsf_frmts/ogr_formats.html html
-	cp ogr/ogr_feature_style.html html
+	cp ogr/*.html html
 	cp ogr/ogrsf_frmts/gpkg/geopackage_aspatial.html html
 	cp ogr/*.gif html
+	cp ogr/*.png html
 
 .PHONY: man
 
 man:
 # Generate man pages
-	(cat Doxyfile ; echo "ENABLED_SECTIONS=man"; echo "INPUT=apps swig/python/scripts"; echo "FILE_PATTERNS=*.cpp *.dox"; echo "GENERATE_HTML=NO"; echo "GENERATE_MAN=YES") | doxygen -
+	(cat Doxyfile ; echo "ENABLED_SECTIONS=man"; echo "INPUT=apps swig/python/scripts"; echo "FILE_PATTERNS=*.cpp *.dox"; echo "GENERATE_HTML=NO"; echo "GENERATE_MAN=YES" ; echo "LAYOUT_FILE=/dev/null") | doxygen -
 # Remove "Directory reference" file. Not sure if there's a better way of doing it.
 	 @find man -name '_home_*_gdal_apps_.1' -exec rm {} \;
 
@@ -184,7 +211,22 @@ web-update:	docs
 	$(INSTALL_DIR) $(INST_HTML)
 	cp html/*.* $(INST_HTML)
 
-install:	default install-actions
+install:	install-actions
+
+install-static-lib: static-lib gdal.pc
+	$(INSTALL_LIB) $(GDAL_LIB) $(DESTDIR)$(INST_LIB)
+	$(INSTALL_DIR) $(DESTDIR)$(INST_DATA)
+	$(INSTALL_DIR) $(DESTDIR)$(INST_INCLUDE)
+	(cd port; $(MAKE) install)
+	(cd gcore; $(MAKE) install)
+	(cd frmts; $(MAKE) install)
+	(cd alg; $(MAKE) install)
+	(cd ogr; $(MAKE) install)
+	(cd gnm; $(MAKE) install)
+	for f in LICENSE.TXT data/*.* ; do $(INSTALL_DATA) $$f $(DESTDIR)$(INST_DATA) ; done
+	$(LIBTOOL_FINISH) $(DESTDIR)$(INST_LIB)
+	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)/pkgconfig
+	$(INSTALL_DATA) gdal.pc $(DESTDIR)$(INST_LIB)/pkgconfig/gdal.pc
 
 install-actions: install-lib
 	$(INSTALL_DIR) $(DESTDIR)$(INST_BIN)
@@ -221,7 +263,7 @@ endif
 
 ifeq ($(HAVE_LIBTOOL),yes)
 
-install-lib:
+install-lib: default
 	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)
 	for f in $(LIBGDAL-yes) ; do $(INSTALL_LIB) $$f $(DESTDIR)$(INST_LIB) ; done
 ifeq ($(MACOSX_FRAMEWORK),yes)
@@ -244,7 +286,7 @@ ifeq ($(HAVE_LD_SHARED),yes)
 
 GDAL_SLIB_B	=	$(notdir $(GDAL_SLIB))
 
-install-lib:
+install-lib: default
 
 	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)
 ifeq ($(MACOSX_FRAMEWORK),yes)
@@ -263,15 +305,13 @@ endif
 
 else
 
-install-lib:
+install-lib: default
 	$(INSTALL_DIR) $(DESTDIR)$(INST_LIB)
 	$(INSTALL_LIB) $(GDAL_LIB) $(DESTDIR)$(INST_LIB)
 
-endif # HAVE_LD_SHARED=no 
+endif # HAVE_LD_SHARED=no
 
-
-endif # HAVE_LIBTOOL=no 
-
+endif # HAVE_LIBTOOL=no
 
 gdal.pc:	gdal.pc.in GDALmake.opt ./GNUmakefile VERSION
 	rm -f gdal.pc
@@ -279,5 +319,5 @@ gdal.pc:	gdal.pc.in GDALmake.opt ./GNUmakefile VERSION
 	echo 'CONFIG_INST_PREFIX=$(INST_PREFIX)' >> gdal.pc
 	echo 'CONFIG_INST_LIBS=$(CONFIG_LIBS_INS)' >> gdal.pc
 	echo 'CONFIG_INST_CFLAGS=-I$(INST_INCLUDE)' >> gdal.pc
-	echo 'CONFIG_INST_DATA=$(INST_DATA)/data' >> gdal.pc
+	echo 'CONFIG_INST_DATA=$(INST_DATA)' >> gdal.pc
 	cat gdal.pc.in >> gdal.pc

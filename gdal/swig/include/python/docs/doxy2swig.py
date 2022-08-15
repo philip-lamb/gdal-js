@@ -26,24 +26,22 @@ from xml.dom import minidom
 import re
 import textwrap
 import sys
-import types
 import os.path
 
 
 def my_open_read(source):
     if hasattr(source, "read"):
         return source
-    else:
-        return open(source)
+    return open(source)
+
 
 def my_open_write(dest):
     if hasattr(dest, "write"):
         return dest
-    else:
-        return open(dest, 'w')
+    return open(dest, 'w')
 
 
-class Doxy2SWIG:
+class Doxy2SWIG(object):
     """Converts Doxygen generated XML files into a file containing
     docstrings that can be used by SWIG-1.3.x that have support for
     feature("docstring").  Once the data is parsed it is stored in
@@ -61,7 +59,7 @@ class Doxy2SWIG:
         f.close()
 
         self.pieces = []
-        self.pieces.append('\n// File: %s\n'%\
+        self.pieces.append('\n// File: %s\n' %
                            os.path.basename(f.name))
 
         self.space_re = re.compile(r'\s+')
@@ -74,7 +72,7 @@ class Doxy2SWIG:
                         'collaborationgraph', 'reimplements',
                         'reimplementedby', 'derivedcompoundref',
                         'basecompoundref')
-        #self.generics = []
+        # self.generics = []
 
     def generate(self):
         """Parses the file set in the initialization.  The resulting
@@ -89,7 +87,7 @@ class Doxy2SWIG:
         nodes.
 
         """
-        pm = getattr(self, "parse_%s"%node.__class__.__name__)
+        pm = getattr(self, "parse_%s" % node.__class__.__name__)
         pm(node)
 
     def parse_Document(self, node):
@@ -122,11 +120,11 @@ class Doxy2SWIG:
             handlerMethod(node)
         else:
             self.generic_parse(node)
-            #if name not in self.generics: self.generics.append(name)
+            # if name not in self.generics: self.generics.append(name)
 
     def add_text(self, value):
         """Adds text corresponding to `value` into `self.pieces`."""
-        if type(value) in (types.ListType, types.TupleType):
+        if isinstance(value, (list, tuple)):
             self.pieces.extend(value)
         else:
             self.pieces.append(value)
@@ -137,8 +135,8 @@ class Doxy2SWIG:
         `ELEMENT_NODEs`, that have a `tagName` equal to the name.
 
         """
-        nodes = [(x.tagName, x) for x in node.childNodes \
-                 if x.nodeType == x.ELEMENT_NODE and \
+        nodes = [(x.tagName, x) for x in node.childNodes
+                 if x.nodeType == x.ELEMENT_NODE and
                  x.tagName in names]
         return dict(nodes)
 
@@ -160,7 +158,7 @@ class Doxy2SWIG:
         if pad:
             npiece = len(self.pieces)
             if pad == 2:
-                self.add_text('\n')                
+                self.add_text('\n')
         for n in node.childNodes:
             self.parse(n)
         if pad:
@@ -180,21 +178,21 @@ class Doxy2SWIG:
     def do_compoundname(self, node):
         self.add_text('\n\n')
         data = node.firstChild.data
-        self.add_text('%%feature("docstring") %s "\n'%data)
+        self.add_text('%%feature("docstring") %s "\n' % data)
 
     def do_compounddef(self, node):
         kind = node.attributes['kind'].value
         if kind in ('class', 'struct'):
             prot = node.attributes['prot'].value
-            if prot <> 'public':
+            if prot != 'public':
                 return
             names = ('compoundname', 'briefdescription',
                      'detaileddescription', 'includes')
             first = self.get_specific_nodes(node, names)
             for n in names:
-                if first.has_key(n):
+                if n in first:
                     self.parse(first[n])
-            self.add_text(['";','\n'])
+            self.add_text(['";', '\n'])
             for n in node.childNodes:
                 if n not in first.values():
                     self.parse(n)
@@ -217,7 +215,7 @@ class Doxy2SWIG:
 
     def do_parametername(self, node):
         self.add_text('\n')
-        self.add_text("%s: "%node.firstChild.data)
+        self.add_text("%s: " % node.firstChild.data)
 
     def do_parameterdefinition(self, node):
         self.generic_parse(node, pad=1)
@@ -230,23 +228,21 @@ class Doxy2SWIG:
 
     def do_memberdef(self, node):
         prot = node.attributes['prot'].value
-        id = node.attributes['id'].value
-        kind = node.attributes['kind'].value
         tmp = node.parentNode.parentNode.parentNode
         compdef = tmp.getElementsByTagName('compounddef')[0]
         cdef_kind = compdef.attributes['kind'].value
-        
+
         if prot == 'public':
             first = self.get_specific_nodes(node, ('definition', 'name'))
             name = first['name'].firstChild.data
-            name = name.replace(sys.argv[4],'')
-            if name[:8] == 'operator': # Don't handle operators yet.
+            name = name.replace(sys.argv[4], '')
+            if name[:8] == 'operator':  # Don't handle operators yet.
                 return
 
             defn = first['definition'].firstChild.data
             self.add_text('\n')
             self.add_text('%feature("docstring") ')
-            
+
             anc = node.parentNode.parentNode
             if cdef_kind in ('file', 'namespace'):
                 ns_node = anc.getElementsByTagName('innernamespace')
@@ -254,23 +250,23 @@ class Doxy2SWIG:
                     ns_node = anc.getElementsByTagName('compoundname')
                 if ns_node:
                     ns = ns_node[0].firstChild.data
-                    self.add_text(' %s::%s "\n%s'%(ns, name, defn))
+                    self.add_text(' %s::%s "\n%s' % (ns, name, defn))
                 else:
-                    self.add_text(' %s "\n%s'%(name, defn))
+                    self.add_text(' %s "\n%s' % (name, defn))
             elif cdef_kind in ('class', 'struct'):
                 # Get the full function name.
                 anc_node = anc.getElementsByTagName('compoundname')
                 cname = anc_node[0].firstChild.data
-                self.add_text(' %s::%s "\n%s'%(cname, name, defn))
+                self.add_text(' %s::%s "\n%s' % (cname, name, defn))
 
             for n in node.childNodes:
                 if n not in first.values():
                     self.parse(n)
             self.add_text(['";', '\n'])
-        
+
     def do_definition(self, node):
         data = node.firstChild.data
-        self.add_text('%s "\n%s'%(data, data))
+        self.add_text('%s "\n%s' % (data, data))
 
     def do_sectiondef(self, node):
         kind = node.attributes['kind'].value
@@ -307,8 +303,8 @@ class Doxy2SWIG:
             refid = c.attributes['refid'].value
             fname = refid + '.xml'
             if not os.path.exists(fname):
-                fname = os.path.join(self.my_dir,  fname)
-            print "parsing file: %s"%fname
+                fname = os.path.join(self.my_dir, fname)
+            print("parsing file: %s" % fname)
             p = Doxy2SWIG(fname)
             p.generate()
             self.pieces.extend(self.clean_pieces(p.pieces))
@@ -327,7 +323,7 @@ class Doxy2SWIG:
         """Cleans the list of strings given as `pieces`.  It replaces
         multiple newlines by a maximum of 2 and returns a new list.
         It also wraps the paragraphs nicely.
-        
+
         """
         ret = []
         count = 0
@@ -341,7 +337,7 @@ class Doxy2SWIG:
                 elif count > 2:
                     ret.append('\n\n')
                 elif count:
-                    ret.append('\n'*count)
+                    ret.append('\n' * count)
                 count = 0
                 ret.append(i)
 
@@ -350,7 +346,7 @@ class Doxy2SWIG:
         for i in _data.split('\n\n'):
             if i == 'Parameters:':
                 ret.extend(['Parameters:\n-----------', '\n\n'])
-            elif i.find('// File:') > -1: # leave comments alone.
+            elif i.find('// File:') > -1:  # leave comments alone.
                 ret.extend([i, '\n'])
             else:
                 _tmp = textwrap.fill(i.strip())
@@ -359,10 +355,10 @@ class Doxy2SWIG:
         return ret
 
 
-def main(input, output):
-    p = Doxy2SWIG(input)
+def main(inp, outp):
+    p = Doxy2SWIG(inp)
     p.generate()
-    p.write(output)
+    p.write(outp)
 
 
 if __name__ == '__main__':

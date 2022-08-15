@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  OpenGIS Simple Features Reference Implementation
  * Purpose:  Implements OGRODBCSelectLayer class, layer access to the results
@@ -31,23 +30,22 @@
 #include "cpl_conv.h"
 #include "ogr_odbc.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 /************************************************************************/
 /*                          OGRODBCSelectLayer()                         */
 /************************************************************************/
 
 OGRODBCSelectLayer::OGRODBCSelectLayer( OGRODBCDataSource *poDSIn,
-                                        CPLODBCStatement * poStmtIn )
-
+                                        CPLODBCStatement * poStmtIn ) :
+    pszBaseStatement(CPLStrdup(poStmtIn->GetCommand()))
 {
     poDS = poDSIn;
 
     iNextShapeId = 0;
     nSRSId = -1;
-    poFeatureDefn = NULL;
+    poFeatureDefn = nullptr;
 
     poStmt = poStmtIn;
-    pszBaseStatement = CPLStrdup( poStmtIn->GetCommand() );
 
     BuildFeatureDefn( "SELECT", poStmt );
 }
@@ -69,10 +67,10 @@ OGRODBCSelectLayer::~OGRODBCSelectLayer()
 void OGRODBCSelectLayer::ClearStatement()
 
 {
-    if( poStmt != NULL )
+    if( poStmt != nullptr )
     {
         delete poStmt;
-        poStmt = NULL;
+        poStmt = nullptr;
     }
 }
 
@@ -83,7 +81,7 @@ void OGRODBCSelectLayer::ClearStatement()
 CPLODBCStatement *OGRODBCSelectLayer::GetStatement()
 
 {
-    if( poStmt == NULL )
+    if( poStmt == nullptr )
         ResetStatement();
 
     return poStmt;
@@ -109,7 +107,7 @@ OGRErr OGRODBCSelectLayer::ResetStatement()
     else
     {
         delete poStmt;
-        poStmt = NULL;
+        poStmt = nullptr;
         return OGRERR_FAILURE;
     }
 }

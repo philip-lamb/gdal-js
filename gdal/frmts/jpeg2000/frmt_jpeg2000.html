@@ -13,6 +13,30 @@ This implementation based on JasPer software (see below).<p>
 Starting with GDAL 1.9.0, XMP metadata can be extracted from JPEG2000 files, and will be
 stored as XML raw content in the xml:XMP metadata domain.<p>
 
+<h2><a name="georeferencing">Georeferencing</a></h2>
+
+<p>
+Georeferencing information can come from different sources : internal (GeoJP2
+or GMLJP2 boxes), worldfile .j2w/.wld sidecar files, or PAM (Persitant Auxiliary metadata)
+.aux.xml sidecar files.
+By default, information is fetched in following order (first listed is the most
+prioritary): PAM, GeoJP2, GMLJP2, WORLDFILE.
+</p>
+<p>Starting with GDAL 2.2, the allowed sources
+and their priority order can be changed with the GDAL_GEOREF_SOURCES
+configuration option (or GEOREF_SOURCES open option) whose value is a
+comma-separated list of the following keywords :
+PAM, GEOJP2, GMLJP2, INTERNAL (shortcut for GEOJP2,GMLJP2), WORLDFILE, NONE.
+First mentioned sources are the most prioritary over the next ones. A non mentioned
+source will be ignored.
+</p>
+<p>
+For example setting it to "WORLDFILE,PAM,INTERNAL" will make a geotransformation
+matrix from a potential worldfile prioritary over PAM or internal JP2 boxes.
+Setting it to "PAM,WORLDFILE,GEOJP2" will use the mentioned sources and
+ignore GMLJP2 boxes.
+</p>
+
 <h2>Option Options</h2>
 
 (GDAL &gt;= 2.0 )
@@ -21,6 +45,8 @@ The following open option is available:
 <ul>
 <li><p><b>1BIT_ALPHA_PROMOTION=YES/NO</b>: Whether a 1-bit alpha channel should be promoted to 8-bit.
 Defaults to YES.</li>
+<li><p><b>GEOREF_SOURCES=string</b>: (GDAL &gt; 2.2) Define which georeferencing sources are
+allowed and their priority order. See <a href="#georeferencing"><i>Georeferencing</i></a> paragraph.</li>
 </ul>
 
 <h2>Creation Options</h2>
@@ -52,6 +78,9 @@ previous versions. Require a modified Jasper with GeoJP2 support enabled)
 Indicates whether a UUID/GeoTIFF
 box conforming to the GeoJP2 (GeoTIFF in JPEG2000) specification should be
 included in the file.  Defaults to YES.<p>
+
+<li><p><b>NBITS=int_value</b> : (GDAL &gt;= 2.3) Bits (precision) for sub-byte
+files (1-7), sub-uint16 (9-15).</p></li>
 
 	<li> Encoding parameters, directly delivered to the JasPer library
 	described in the JasPer documentation. Quoted from the docs:<p>
@@ -271,8 +300,8 @@ included in the file.  Defaults to YES.<p>
 
 <li> You need modified JasPer library to build this driver with GeoJP2 support
 enabled. Modified version can be downloaded from
-<a href="ftp://ftp.remotesensing.org/gdal/jasper-1.900.1.uuid.tar.gz">
-ftp://ftp.remotesensing.org/gdal/jasper-1.900.1.uuid.tar.gz</a><p>
+<a href="http://download.osgeo.org/gdal/jasper-1.900.1.uuid.tar.gz  ">
+http://download.osgeo.org/gdal/jasper-1.900.1.uuid.tar.gz  </a><p>
 
 <li> <a href="http://www.jpeg.org/JPEG2000.html">
 Official JPEG-2000 page

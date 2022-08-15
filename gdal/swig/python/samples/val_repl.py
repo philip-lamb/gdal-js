@@ -33,6 +33,8 @@
 ###############################################################################
 
 
+import sys
+
 from osgeo import gdal
 gdal.TermProgress = gdal.TermProgress_nocb
 
@@ -42,32 +44,35 @@ except ImportError:
     import Numeric as numpy
 
 
-import sys
-
 # =============================================================================
+
+
 def Usage():
     print('Usage: val_repl.py -innd in_nodata_value -outnd out_nodata_value')
     print('                   [-of out_format] [-ot out_type] infile outfile')
     print('')
-    sys.exit( 1 )
+    sys.exit(1)
 
 # =============================================================================
 
 # =============================================================================
-def ParseType(type):
-    gdal_dt = gdal.GetDataTypeByName(type)
+
+
+def ParseType(typ):
+    gdal_dt = gdal.GetDataTypeByName(typ)
     if gdal_dt is gdal.GDT_Unknown:
         gdal_dt = gdal.GDT_Byte
     return gdal_dt
 
 # =============================================================================
 
+
 inNoData = None
 outNoData = None
 infile = None
 outfile = None
-format = 'GTiff'
-type = gdal.GDT_Byte
+frmt = 'GTiff'
+typ = gdal.GDT_Byte
 
 # Parse command line arguments.
 i = 1
@@ -84,11 +89,11 @@ while i < len(sys.argv):
 
     elif arg == '-of':
         i = i + 1
-        format = sys.argv[i]
+        frmt = sys.argv[i]
 
     elif arg == '-ot':
         i = i + 1
-        type = ParseType(sys.argv[i])
+        typ = ParseType(sys.argv[i])
 
     elif infile is None:
         infile = arg
@@ -103,24 +108,24 @@ while i < len(sys.argv):
 
 if infile is None:
     Usage()
-if  outfile is None:
+if outfile is None:
     Usage()
 if inNoData is None:
     Usage()
 if outNoData is None:
     Usage()
 
-indataset = gdal.Open( infile, gdal.GA_ReadOnly )
+indataset = gdal.Open(infile, gdal.GA_ReadOnly)
 
-out_driver = gdal.GetDriverByName(format)
-outdataset = out_driver.Create(outfile, indataset.RasterXSize, indataset.RasterYSize, indataset.RasterCount, type)
+out_driver = gdal.GetDriverByName(frmt)
+outdataset = out_driver.Create(outfile, indataset.RasterXSize, indataset.RasterYSize, indataset.RasterCount, typ)
 
 gt = indataset.GetGeoTransform()
 if gt is not None and gt != (0.0, 1.0, 0.0, 0.0, 0.0, 1.0):
     outdataset.SetGeoTransform(gt)
 
 prj = indataset.GetProjectionRef()
-if prj is not None and len(prj) > 0:
+if prj:
     outdataset.SetProjection(prj)
 
 for iBand in range(1, indataset.RasterCount + 1):
@@ -129,7 +134,6 @@ for iBand in range(1, indataset.RasterCount + 1):
 
     for i in range(inband.YSize - 1, -1, -1):
         scanline = inband.ReadAsArray(0, i, inband.XSize, 1, inband.XSize, 1)
-        scanline = numpy.choose( numpy.equal( scanline, inNoData),
-                                       (scanline, outNoData) )
+        scanline = numpy.choose(numpy.equal(scanline, inNoData),
+                                (scanline, outNoData))
         outband.WriteArray(scanline, 0, i)
-

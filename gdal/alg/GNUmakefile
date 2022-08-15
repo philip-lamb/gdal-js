@@ -8,20 +8,16 @@ OBJ	=	gdalmediancut.o gdaldither.o gdal_crs.o gdaltransformer.o \
 		gdalgrid.o gdalcutline.o gdalproximity.o rasterfill.o \
 		gdalrasterpolygonenumerator.o \
 		gdalsievefilter.o gdalwarpkernel_opencl.o polygonize.o \
-		contour.o gdaltransformgeolocs.o \
+		contour.o gdaltransformgeolocs.o gdallinearsystem.o \
 		gdal_octave.o gdal_simplesurf.o gdalmatching.o delaunay.o \
-		gdalpansharpen.o
-
-ifeq ($(HAVE_AVX_AT_COMPILE_TIME),yes)
-CPPFLAGS 	:=	-DHAVE_AVX_AT_COMPILE_TIME $(CPPFLAGS)
-endif
-
-ifeq ($(HAVE_SSE_AT_COMPILE_TIME),yes)
-CPPFLAGS 	:=	-DHAVE_SSE_AT_COMPILE_TIME $(CPPFLAGS)
-endif
+		gdalpansharpen.o gdalapplyverticalshiftgrid.o
 
 ifeq ($(HAVE_GEOS),yes)
 CPPFLAGS 	:=	-DHAVE_GEOS=1 $(GEOS_CFLAGS) $(CPPFLAGS)
+endif
+
+ifeq ($(HAVE_SFCGAL),yes)
+CPPFLAGS 	:=	-DHAVE_SFCGAL=1 $(SFCGAL_CFLAGS) $(CPPFLAGS)
 endif
 
 ifeq ($(HAVE_ARMADILLO),yes)
@@ -29,32 +25,43 @@ CPPFLAGS 	:=	-DHAVE_ARMADILLO $(CPPFLAGS)
 endif
 
 ifeq ($(QHULL_SETTING),external)
-CPPFLAGS 	:=	-DEXTERNAL_QHULL $(CPPFLAGS)
+CPPFLAGS 	:=	-DEXTERNAL_QHULL -DQHULL_INCLUDE_SUBDIR_IS_LIBQHULL=$(QHULL_INCLUDE_SUBDIR_IS_LIBQHULL) $(CPPFLAGS)
 endif
 ifeq ($(QHULL_SETTING),internal)
-CPPFLAGS 	:=	-DINTERNAL_QHULL -Ilibqhull $(CPPFLAGS)
+CPPFLAGS 	:=	-DINTERNAL_QHULL $(CPPFLAGS)
 endif
 
-CPPFLAGS	:=	$(CPPFLAGS) $(OPENCL_FLAGS)
+CPPFLAGS	:=	-I../frmts/vrt $(CPPFLAGS) $(OPENCL_FLAGS) $(PROJ_FLAGS) $(PROJ_INCLUDE) -Imarching_squares
+
+CXXFLAGS	:=	$(WARN_EFFCPLUSPLUS) $(WARN_OLD_STYLE_CAST) $(CXXFLAGS)
 
 default:	$(OBJ:.o=.$(OBJ_EXT)) gdalgridavx.$(OBJ_EXT) gdalgridsse.$(OBJ_EXT)
 
 # We use CXXFLAGS_NO_LTO_IF_AVX_NONDEFAULT to avoid the whole library to be compiled with -mavx
 # if -mavx is not the default
 gdalgridavx.$(OBJ_EXT):   gdalgridavx.cpp
-	$(CXX) $(GDAL_INCLUDE) $(CXXFLAGS_NO_LTO_IF_AVX_NONDEFAULT) $(AVXFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CXX) $(GDAL_INCLUDE) $(CXXFLAGS_NO_LTO_IF_AVX_NONDEFAULT) $(WARN_OLD_STYLE_CAST) $(AVXFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 gdalgridsse.$(OBJ_EXT):   gdalgridsse.cpp
-	$(CXX) $(GDAL_INCLUDE) $(CXXFLAGS) $(SSEFLAGS) $(CPPFLAGS) -c -o $@ $<
+	$(CXX) $(GDAL_INCLUDE) $(CXXFLAGS) $(WARN_OLD_STYLE_CAST) $(SSEFLAGS) $(CPPFLAGS) -c -o $@ $<
 
 clean:
 	$(RM) *.o $(O_OBJ)
 
-docs:	
+docs:
 	(cd ..; $(MAKE) docs)
 
+INST_H_FILES = \
+	gdal_alg.h \
+	gdal_alg_priv.h \
+	gdalgrid.h \
+	gdalgrid_priv.h \
+	gdalpansharpen.h \
+	gdal_simplesurf.h \
+	gdalwarper.h
+
 install:
-	for f in *.h ; do $(INSTALL_DATA) $$f $(DESTDIR)$(INST_INCLUDE) ; done
+	for f in $(INST_H_FILES) ; do $(INSTALL_DATA) $$f $(DESTDIR)$(INST_INCLUDE) ; done
 
 lib:	$(OBJ:.o=.$(OBJ_EXT))
 	(cd .. ; $(MAKE) force-lib)

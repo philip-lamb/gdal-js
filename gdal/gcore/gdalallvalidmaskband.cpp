@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  GDAL Core
  * Purpose:  Implementation of GDALAllValidMaskBand, a class implementing all
@@ -28,10 +27,17 @@
  * DEALINGS IN THE SOFTWARE.
  ****************************************************************************/
 
+#include "cpl_port.h"
 #include "gdal_priv.h"
 
-CPL_CVSID("$Id$");
+#include <cstring>
 
+#include "gdal.h"
+#include "cpl_error.h"
+
+CPL_CVSID("$Id$")
+
+//! @cond Doxygen_Suppress
 /************************************************************************/
 /*                        GDALAllValidMaskBand()                        */
 /************************************************************************/
@@ -39,7 +45,7 @@ CPL_CVSID("$Id$");
 GDALAllValidMaskBand::GDALAllValidMaskBand( GDALRasterBand *poParent ) :
     GDALRasterBand(FALSE)
 {
-    poDS = NULL;
+    poDS = nullptr;
     nBand = 0;
 
     nRasterXSize = poParent->GetXSize();
@@ -53,7 +59,7 @@ GDALAllValidMaskBand::GDALAllValidMaskBand( GDALRasterBand *poParent ) :
 /*                       ~GDALAllValidMaskBand()                        */
 /************************************************************************/
 
-GDALAllValidMaskBand::~GDALAllValidMaskBand() {}
+GDALAllValidMaskBand::~GDALAllValidMaskBand() = default;
 
 /************************************************************************/
 /*                             IReadBlock()                             */
@@ -87,3 +93,25 @@ int GDALAllValidMaskBand::GetMaskFlags()
 {
     return GMF_ALL_VALID;
 }
+
+/************************************************************************/
+/*                           ComputeStatistics()                        */
+/************************************************************************/
+
+CPLErr GDALAllValidMaskBand::ComputeStatistics( int /* bApproxOK */,
+                            double *pdfMin, double *pdfMax,
+                            double *pdfMean, double *pdfStdDev,
+                            GDALProgressFunc, void * /*pProgressData*/ )
+{
+    if( pdfMin )
+        *pdfMin = 255.0;
+    if( pdfMax )
+        *pdfMax = 255.0;
+    if( pdfMean )
+        *pdfMean = 255.0;
+    if( pdfStdDev )
+        *pdfStdDev = 0.0;
+    return CE_None;
+}
+
+//! @endcond

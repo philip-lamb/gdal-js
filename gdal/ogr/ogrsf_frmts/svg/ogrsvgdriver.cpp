@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  SVG Translator
  * Purpose:  Implements OGRSVGDriver.
@@ -30,7 +29,7 @@
 #include "ogr_svg.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 CPL_C_START
 void RegisterOGRSVG();
@@ -45,18 +44,18 @@ CPL_C_END
 static GDALDataset *OGRSVGDriverOpen( GDALOpenInfo* poOpenInfo )
 
 {
-    if( poOpenInfo->eAccess == GA_Update || poOpenInfo->fpL == NULL )
-        return NULL;
+    if( poOpenInfo->eAccess == GA_Update || poOpenInfo->fpL == nullptr )
+        return nullptr;
 
-    if( strstr((const char*)poOpenInfo->pabyHeader, "<svg") == NULL )
-        return NULL;
+    if( strstr((const char*)poOpenInfo->pabyHeader, "<svg") == nullptr )
+        return nullptr;
 
-    OGRSVGDataSource   *poDS = new OGRSVGDataSource();
+    OGRSVGDataSource *poDS = new OGRSVGDataSource();
 
     if( !poDS->Open( poOpenInfo->pszFilename ) )
     {
         delete poDS;
-        poDS = NULL;
+        poDS = nullptr;
     }
 
     return poDS;
@@ -72,7 +71,7 @@ void RegisterOGRSVG()
     if(! GDAL_CHECK_VERSION("OGR/SVG driver") )
         return;
 
-    if( GDALGetDriverByName( "SVG" ) != NULL )
+    if( GDALGetDriverByName( "SVG" ) != nullptr )
         return;
 
     GDALDriver *poDriver = new GDALDriver();
@@ -88,4 +87,3 @@ void RegisterOGRSVG()
 
     GetGDALDriverManager()->RegisterDriver( poDriver );
 }
-

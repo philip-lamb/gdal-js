@@ -6,14 +6,16 @@ SUBDIRS-yes	:= \
 	mitab ntf gpx rec s57 sdts shape tiger vrt \
 	geoconcept xplane georss gtm dxf pgdump gpsbabel \
 	sua openair pds htf aeronavfaa edigeo svg idrisi \
-	arcgen segukooa segy sxf openfilegdb wasp selafin jml vdv
+	arcgen segukooa segy sxf openfilegdb wasp selafin jml vdv mvt
 
 SUBDIRS-$(HAVE_DODS)	+= dods
-SUBDIRS-$(HAVE_DWGDIRECT) += dxfdwg
+SUBDIRS-$(HAVE_TEIGHA)  += dwg
+SUBDIRS-$(HAVE_CAD)	+= cad
 SUBDIRS-$(HAVE_FME)	+= fme
 SUBDIRS-$(HAVE_GRASS)	+= grass
 SUBDIRS-$(HAVE_IDB)	+= idb
 SUBDIRS-$(HAVE_XERCES)	+= ili
+SUBDIRS-$(HAVE_XERCES)	+= gmlas
 SUBDIRS-$(HAVE_NAS)	+= nas
 SUBDIRS-$(HAVE_MYSQL)	+= mysql
 SUBDIRS-$(ODBC_SETTING)	+= odbc pgeo mssqlspatial geomedia walk
@@ -44,10 +46,10 @@ SUBDIRS-$(CURL_SETTING) += amigocloud
 SUBDIRS-$(CURL_SETTING) += plscenes
 SUBDIRS-$(CURL_SETTING) += csw
 SUBDIRS-$(HAVE_MONGODB) += mongodb
+SUBDIRS-$(CURL_SETTING) += ngw
 
 default:	$(foreach d,$(SUBDIRS-yes),$(d)-target)
 
 clean:	$(foreach d,$(SUBDIRS-yes),$(d)-clean)
 	rm -f o/*.o
 	$(RM) o/*.lo
-

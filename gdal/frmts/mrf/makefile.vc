@@ -13,16 +13,18 @@
 GDAL_ROOT	=	..\..
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
-OBJ	=	Tif_band.obj Raw_band.obj PNG_band.obj JPEG_band.obj JPNG_band.obj\
+OBJ	=	Packer_RLE.obj Tif_band.obj Raw_band.obj PNG_band.obj JPEG_band.obj JPNG_band.obj\
     mrf_band.obj mrf_overview.obj mrf_util.obj marfa_dataset.obj
 
 PLUGIN_DLL =	gdal_mrf.dll
 
+!IF "$(HAVE_LERC)" == "1"
 # If the LERC folder exists, build LERC support
 !IF EXIST(libLERC)
 LIBLERC = libLERC.obj
-EXTRAFLAGS	= -DLERC -IlibLERC $(EXTRAFLAGS)
+EXTRAFLAGS	= -DLERC -IlibLERC -I../../third_party/LercLib $(EXTRAFLAGS)
 OBJ = $(LIBLERC) LERC_Band.obj $(OBJ)
+!ENDIF
 !ENDIF
 
 !IFDEF JPEG_EXTERNAL_LIB
@@ -41,12 +43,20 @@ EXTRA_LINK_FLAGS =  $(EXTRA_LINK_FLAGS) ../jpeg/libjpeg12/libjpeg12.lib
 
 !ENDIF
 
-!IFDEF PNG_EXTERNAL_LIB
-EXTRAFLAGS = 	-I../zlib -I$(PNGDIR) $(EXTRAFLAGS)
+!IFDEF ZLIB_EXTERNAL_LIB
+EXTRAFLAGS = $(ZLIB_INC) $(EXTRAFLAGS)
+EXTRA_LINK_FLAGS = $(EXTRA_LINK_FLAGS) $(ZLIB_LIB)
 !ELSE
-EXTRAFLAGS = 	/wd4611 -I../zlib -I../png/libpng -DINTERNAL_PNG $(EXTRAFLAGS)
+EXTRAFLAGS = -I../zlib $(EXTRAFLAGS)
+EXTRA_LINK_FLAGS = $(EXTRA_LINK_FLAGS) ../zlib/libz.lib
 !ENDIF
-EXTRA_LINK_FLAGS =  $(EXTRA_LINK_FLAGS) ../png/libpng/libpng.lib ../zlib/libz.lib
+
+!IFDEF PNG_EXTERNAL_LIB
+EXTRAFLAGS = 	 -I$(PNGDIR) $(EXTRAFLAGS)
+!ELSE
+EXTRAFLAGS = 	/wd4611 -I../png/libpng -DINTERNAL_PNG $(EXTRAFLAGS)
+!ENDIF
+EXTRA_LINK_FLAGS =  $(EXTRA_LINK_FLAGS) ../png/libpng/libpng.lib
 
 default:	$(OBJ)
 	xcopy /D  /Y *.obj ..\o

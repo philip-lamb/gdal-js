@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  OpenGIS Simple Features Reference Implementation
  * Purpose:  Function to register all known OGR drivers.
@@ -30,7 +29,7 @@
 
 #include "ogrsf_frmts.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                           OGRRegisterAll()                           */
@@ -96,6 +95,9 @@ void OGRRegisterAllInternal()
 #endif
 #ifdef GEOJSON_ENABLED
     RegisterOGRGeoJSON();
+    RegisterOGRGeoJSONSeq();
+    RegisterOGRESRIJSON();
+    RegisterOGRTopoJSON();
 #endif
 #ifdef ILI_ENABLED
     RegisterOGRILI1();
@@ -158,11 +160,17 @@ void OGRRegisterAllInternal()
 #ifdef XPLANE_ENABLED
     RegisterOGRXPlane();
 #endif
-#ifdef DWGDIRECT_ENABLED
-    RegisterOGRDXFDWG();
+#ifdef DWG_ENABLED
+    RegisterOGRDWG();
+#endif
+#ifdef DGNV8_ENABLED
+    RegisterOGRDGNV8();
 #endif
 #ifdef DXF_ENABLED
     RegisterOGRDXF();
+#endif
+#ifdef CAD_ENABLED
+    RegisterOGRCAD();
 #endif
 #ifdef GRASS_ENABLED
     RegisterOGRGRASS();
@@ -206,6 +214,7 @@ void OGRRegisterAllInternal()
 #endif
 #ifdef WFS_ENABLED
     RegisterOGRWFS();
+    RegisterOGRWFS3();
 #endif
 #ifdef SOSI_ENABLED
     RegisterOGRSOSI();
@@ -246,7 +255,7 @@ void OGRRegisterAllInternal()
 #ifdef SEGY_ENABLED
     RegisterOGRSEGY();
 #endif
-#ifdef FREEXL_ENABLED
+#ifdef XLS_ENABLED
     RegisterOGRXLS();
 #endif
 #ifdef ODS_ENABLED
@@ -288,6 +297,12 @@ void OGRRegisterAllInternal()
 #ifdef VDV_ENABLED
     RegisterOGRVDV();
 #endif
+#ifdef GMLAS_ENABLED
+    RegisterOGRGMLAS();
+#endif
+#ifdef MVT_ENABLED
+    RegisterOGRMVT();
+#endif
 
 /* Put TIGER and AVCBIN at end since they need poOpenInfo->GetSiblingFiles() */
 #ifdef TIGER_ENABLED
@@ -297,5 +312,9 @@ void OGRRegisterAllInternal()
     RegisterOGRAVCBin();
     RegisterOGRAVCE00();
 #endif
+
+#ifdef NGW_ENABLED
+    RegisterOGRNGW();
+#endif // NGW_ENABLED
 
 } /* OGRRegisterAll */

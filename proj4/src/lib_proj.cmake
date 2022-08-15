@@ -55,7 +55,6 @@ SET(SRC_LIBPROJ_PJ
         PJ_cea.c
         PJ_chamb.c
         PJ_collg.c
-        PJ_comill.c
         PJ_crast.c
         PJ_denoy.c
         PJ_eck1.c
@@ -89,7 +88,6 @@ SET(SRC_LIBPROJ_PJ
         PJ_lcc.c
         PJ_loxim.c
         PJ_lsat.c
-        PJ_misrsom.c
         PJ_mbt_fps.c
         PJ_mbtfpp.c
         PJ_mbtfpq.c
@@ -98,7 +96,6 @@ SET(SRC_LIBPROJ_PJ
         PJ_mod_ster.c
         PJ_moll.c
         PJ_natearth.c
-        PJ_natearth2.c
         PJ_nell.c
         PJ_nell_h.c
         PJ_nocol.c
@@ -109,7 +106,6 @@ SET(SRC_LIBPROJ_PJ
         PJ_oea.c
         PJ_omerc.c
         PJ_ortho.c
-        PJ_patterson.c
         PJ_poly.c
         PJ_putp2.c
         PJ_putp3.c
@@ -119,7 +115,6 @@ SET(SRC_LIBPROJ_PJ
         PJ_qsc.c
         PJ_robin.c
         PJ_rpoly.c
-        PJ_sch.c
         PJ_sconics.c
         PJ_somerc.c
         PJ_sterea.c
@@ -127,7 +122,6 @@ SET(SRC_LIBPROJ_PJ
         PJ_sts.c
         PJ_tcc.c
         PJ_tcea.c
-        PJ_times.c
         PJ_tmerc.c
         PJ_tpeqd.c
         PJ_urm5.c
@@ -172,10 +166,8 @@ SET(SRC_LIBPROJ_CORE
         pj_errno.c
         pj_factors.c
         pj_fwd.c
-        pj_fwd3d.c
         pj_gauss.c
         pj_gc_reader.c
-        pj_generic_selftest.c
         pj_geocent.c
         pj_gridcatalog.c
         pj_gridinfo.c
@@ -184,7 +176,6 @@ SET(SRC_LIBPROJ_CORE
         pj_init.c
         pj_initcache.c
         pj_inv.c
-        pj_inv3d.c
         pj_latlong.c
         pj_list.c
         pj_list.h
@@ -199,7 +190,6 @@ SET(SRC_LIBPROJ_CORE
         pj_pr_list.c
         pj_qsfn.c
         pj_release.c
-        pj_run_selftests.c
         pj_strerrno.c
         pj_transform.c
         pj_tsfn.c
@@ -301,15 +291,15 @@ set_target_properties(${PROJ_CORE_TARGET}
 # Link properties
 ##############################################
 set(PROJ_LIBRARIES ${PROJ_CORE_TARGET} )
-if(UNIX)
+if(UNIX AND BUILD_LIBPROJ_SHARED)
     find_library(M_LIB m)
     if(M_LIB)
       TARGET_LINK_LIBRARIES(${PROJ_CORE_TARGET} -lm)
     endif()
-endif(UNIX)
-if(USE_THREAD AND Threads_FOUND AND CMAKE_USE_PTHREADS_INIT)
+endif(UNIX AND BUILD_LIBPROJ_SHARED)
+if(USE_THREAD AND Threads_FOUND AND CMAKE_USE_PTHREADS_INIT AND BUILD_LIBPROJ_SHARED)
    TARGET_LINK_LIBRARIES(${PROJ_CORE_TARGET} ${CMAKE_THREAD_LIBS_INIT})
-endif(USE_THREAD AND Threads_FOUND AND CMAKE_USE_PTHREADS_INIT)
+endif(USE_THREAD AND Threads_FOUND AND CMAKE_USE_PTHREADS_INIT AND BUILD_LIBPROJ_SHARED)
 
 
 ##############################################

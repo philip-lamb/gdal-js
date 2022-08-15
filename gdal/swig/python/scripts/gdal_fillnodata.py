@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-#******************************************************************************
+# ******************************************************************************
 #  $Id$
 #
 #  Project:  GDAL Python Interface
 #  Purpose:  Application for filling nodata areas in a raster by interpolation
 #  Author:   Frank Warmerdam, warmerdam@pobox.com
 #
-#******************************************************************************
+# ******************************************************************************
 #  Copyright (c) 2008, Frank Warmerdam
 #  Copyright (c) 2009-2011, Even Rouault <even dot rouault at mines-paris dot org>
 #
@@ -27,17 +27,19 @@
 #  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 #  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #  DEALINGS IN THE SOFTWARE.
-#******************************************************************************
+# ******************************************************************************
 
 import sys
 
 from osgeo import gdal
 
-def CopyBand( srcband, dstband ):
+
+def CopyBand(srcband, dstband):
     for line in range(srcband.YSize):
-        line_data = srcband.ReadRaster( 0, line, srcband.XSize, 1 )
-        dstband.WriteRaster( 0, line, srcband.XSize, 1, line_data,
-                             buf_type = srcband.DataType )
+        line_data = srcband.ReadRaster(0, line, srcband.XSize, 1)
+        dstband.WriteRaster(0, line, srcband.XSize, 1, line_data,
+                            buf_type=srcband.DataType)
+
 
 def Usage():
     print("""
@@ -51,6 +53,7 @@ gdal_fillnodata [-q] [-md max_distance] [-si smooth_iterations]
 # 	Mainline
 # =============================================================================
 
+
 max_distance = 100
 smoothing_iterations = 0
 options = []
@@ -59,24 +62,24 @@ src_filename = None
 src_band = 1
 
 dst_filename = None
-format = 'GTiff'
+frmt = 'GTiff'
 creation_options = []
 
 mask = 'default'
 
 gdal.AllRegister()
-argv = gdal.GeneralCmdLineProcessor( sys.argv )
+argv = gdal.GeneralCmdLineProcessor(sys.argv)
 if argv is None:
-    sys.exit( 0 )
+    sys.exit(0)
 
 # Parse command line arguments.
 i = 1
 while i < len(argv):
     arg = argv[i]
 
-    if arg == '-of':
+    if arg == '-of' or arg == '-f':
         i = i + 1
-        format = argv[i]
+        frmt = argv[i]
 
     elif arg == '-co':
         i = i + 1
@@ -130,7 +133,7 @@ if src_filename is None:
 # =============================================================================
 try:
     gdal.FillNodata
-except:
+except AttributeError:
     print('')
     print('gdal.FillNodata() not available.  You are likely using "old gen"')
     print('bindings or an older version of the next gen bindings.')
@@ -138,13 +141,13 @@ except:
     sys.exit(1)
 
 # =============================================================================
-#	Open source file
+# Open source file
 # =============================================================================
 
 if dst_filename is None:
-    src_ds = gdal.Open( src_filename, gdal.GA_Update )
+    src_ds = gdal.Open(src_filename, gdal.GA_Update)
 else:
-    src_ds = gdal.Open( src_filename, gdal.GA_ReadOnly )
+    src_ds = gdal.Open(src_filename, gdal.GA_ReadOnly)
 
 if src_ds is None:
     print('Unable to open %s' % src_filename)
@@ -152,12 +155,12 @@ if src_ds is None:
 
 srcband = src_ds.GetRasterBand(src_band)
 
-if mask is 'default':
+if mask == 'default':
     maskband = srcband.GetMaskBand()
-elif mask is 'none':
+elif mask == 'none':
     maskband = None
 else:
-    mask_ds = gdal.Open( mask )
+    mask_ds = gdal.Open(mask)
     maskband = mask_ds.GetRasterBand(1)
 
 # =============================================================================
@@ -166,16 +169,16 @@ else:
 
 if dst_filename is not None:
 
-    drv = gdal.GetDriverByName(format)
-    dst_ds = drv.Create( dst_filename,src_ds.RasterXSize, src_ds.RasterYSize,1,
-                         srcband.DataType, creation_options )
+    drv = gdal.GetDriverByName(frmt)
+    dst_ds = drv.Create(dst_filename, src_ds.RasterXSize, src_ds.RasterYSize, 1,
+                        srcband.DataType, creation_options)
     wkt = src_ds.GetProjection()
     if wkt != '':
-        dst_ds.SetProjection( wkt )
-    dst_ds.SetGeoTransform( src_ds.GetGeoTransform() )
+        dst_ds.SetProjection(wkt)
+    dst_ds.SetGeoTransform(src_ds.GetGeoTransform())
 
     dstband = dst_ds.GetRasterBand(1)
-    CopyBand( srcband, dstband )
+    CopyBand(srcband, dstband)
     ndv = srcband.GetNoDataValue()
     if ndv is not None:
         dstband.SetNoDataValue(ndv)
@@ -184,17 +187,17 @@ else:
     dstband = srcband
 
 # =============================================================================
-#	Invoke algorithm.
+# Invoke algorithm.
 # =============================================================================
 
 if quiet_flag:
     prog_func = None
 else:
-    prog_func = gdal.TermProgress
+    prog_func = gdal.TermProgress_nocb
 
-result = gdal.FillNodata( dstband, maskband,
-                          max_distance, smoothing_iterations, options,
-                          callback = prog_func )
+result = gdal.FillNodata(dstband, maskband,
+                         max_distance, smoothing_iterations, options,
+                         callback=prog_func)
 
 
 src_ds = None

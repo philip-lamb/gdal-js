@@ -29,6 +29,8 @@
 #ifndef CPL_SHA256_INCLUDED_H
 #define CPL_SHA256_INCLUDED_H
 
+#ifndef DOXYGEN_SKIP
+
 #include "cpl_port.h"
 
 #define CPL_SHA256_HASH_SIZE 32     /* 256 bit */
@@ -63,6 +65,14 @@ void CPL_DLL CPL_HMAC_SHA256(const void *pKey, size_t nKeyLen,
                              const void *pabyMessage, size_t nMessageLen,
                              GByte abyDigest[CPL_SHA256_HASH_SIZE]);
 
+// Not exported for now
+GByte* CPL_RSA_SHA256_Sign(const char* pszPrivateKey,
+                                  const void* pabyData,
+                                  unsigned int nDataLen,
+                                  unsigned int* pnSignatureLen);
+
 CPL_C_END
+
+#endif /* #ifndef DOXYGEN_SKIP */
 
 #endif  /* CPL_SHA256_INCLUDED_H */

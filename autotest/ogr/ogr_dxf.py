@@ -38,7 +38,8 @@ sys.path.append( '../pymod' )
 
 import ogrtest
 import gdaltest
-from osgeo import gdal, ogr
+from osgeo import gdal
+from osgeo import ogr
 
 ###############################################################################
 # Check some general things to see if they meet expectations.
@@ -206,7 +207,7 @@ def ogr_dxf_6():
         gdaltest.post_reason( 'not keeping 2D text as 2D' )
         return 'fail'
 
-    if feat.GetStyleString() != 'LABEL(f:"Arial",t:"Test",a:30,s:5g,p:7,c:#000000)':
+    if feat.GetStyleString() != 'LABEL(f:"normallatin1",t:"Test",a:30,s:5g,p:7,c:#000000)':
         print(feat.GetStyleString())
         gdaltest.post_reason( 'got wrong style string' )
         return 'fail'
@@ -285,11 +286,11 @@ def ogr_dxf_9():
     feat = gdaltest.dxf_layer.GetNextFeature()
     geom = feat.GetGeometryRef()
 
-    if geom.GetGeometryType() != ogr.wkbGeometryCollection25D:
+    if geom.GetGeometryType() != ogr.wkbMultiLineString25D:
         gdaltest.post_reason( 'did not get expected geometry type.' )
         return 'fail'
 
-    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (LINESTRING (79.069506278985116 121.003652476272777 0,79.716898725419625 118.892590150942851 0),LINESTRING (79.716898725419625 118.892590150942851 0,78.140638855839953 120.440702522851453 0),LINESTRING (78.140638855839953 120.440702522851453 0,80.139111190485622 120.328112532167196 0),LINESTRING (80.139111190485622 120.328112532167196 0,78.619146316248077 118.920737648613908 0),LINESTRING (78.619146316248077 118.920737648613908 0,79.041358781314059 120.975504978601705 0))' ):
+    if ogrtest.check_feature_geometry( feat, 'MULTILINESTRING ((79.069506278985116 121.003652476272777 0,79.716898725419625 118.892590150942851 0),(79.716898725419625 118.892590150942851 0,78.140638855839953 120.440702522851453 0),(78.140638855839953 120.440702522851453 0,80.139111190485622 120.328112532167196 0),(80.139111190485622 120.328112532167196 0,78.619146316248077 118.920737648613908 0),(78.619146316248077 118.920737648613908 0,79.041358781314059 120.975504978601705 0))' ):
         return 'fail'
 
     # First of two MTEXTs
@@ -298,7 +299,7 @@ def ogr_dxf_9():
         gdaltest.post_reason( 'Did not get expected first mtext.' )
         return 'fail'
 
-    expected_style = 'LABEL(f:"Arial",t:"'+gdaltest.sample_style+'",a:45,s:0.5g,p:5,c:#000000)'
+    expected_style = 'LABEL(f:"normallatin1",t:"'+gdaltest.sample_style+'",a:45,s:0.5g,p:5,c:#000000)'
     if feat.GetStyleString() != expected_style:
         gdaltest.post_reason( 'Got unexpected style string:\n%s\ninstead of:\n%s.' % (feat.GetStyleString(),expected_style) )
         return 'fail'
@@ -729,7 +730,7 @@ def ogr_dxf_16():
         gdaltest.post_reason( 'Did not get expected first mtext.' )
         return 'fail'
 
-    expected_style = 'LABEL(f:"Arial",t:"'+gdaltest.sample_style+'",a:45,s:0.5g,p:5,c:#000000)'
+    expected_style = 'LABEL(f:"normallatin1",t:"'+gdaltest.sample_style+'",a:45,s:0.5g,p:5,c:#000000)'
     if feat.GetStyleString() != expected_style:
         gdaltest.post_reason( 'Got unexpected style string:\n%s\ninstead of:\n%s.' % (feat.GetStyleString(),expected_style) )
         return 'fail'
@@ -757,7 +758,7 @@ def ogr_dxf_16():
         gdaltest.post_reason( 'Did not get expected block name.' )
         return 'fail'
 
-    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (LINESTRING (-0.028147497671066 1.041457413829428 0,0.619244948763444 -1.069604911500494 0),LINESTRING (0.619244948763444 -1.069604911500494 0,-0.957014920816232 0.478507460408116 0),LINESTRING (-0.957014920816232 0.478507460408116 0,1.041457413829428 0.365917469723853 0),LINESTRING (1.041457413829428 0.365917469723853 0,-0.478507460408116 -1.041457413829428 0),LINESTRING (-0.478507460408116 -1.041457413829428 0,-0.056294995342131 1.013309916158363 0))' ):
+    if ogrtest.check_feature_geometry( feat, 'MULTILINESTRING ((-0.028147497671066 1.041457413829428 0,0.619244948763444 -1.069604911500494 0),(0.619244948763444 -1.069604911500494 0,-0.957014920816232 0.478507460408116 0),(-0.957014920816232 0.478507460408116 0,1.041457413829428 0.365917469723853 0),(1.041457413829428 0.365917469723853 0,-0.478507460408116 -1.041457413829428 0),(-0.478507460408116 -1.041457413829428 0,-0.056294995342131 1.013309916158363 0))' ):
         return 'fail'
 
     feat = None
@@ -783,6 +784,20 @@ def ogr_dxf_17():
     dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt(
         'GEOMETRYCOLLECTION( LINESTRING(0 0,1 1),LINESTRING(1 0,0 1))' ) )
     dst_feat.SetField( 'BlockName', 'XMark' )
+    blyr.CreateFeature( dst_feat )
+
+    # Block with 2 polygons
+    dst_feat = ogr.Feature( feature_def = blyr.GetLayerDefn() )
+    dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt(
+        'GEOMETRYCOLLECTION( POLYGON((10 10,10 20,20 20,20 10,10 10)),POLYGON((10 -10,10 -20,20 -20,20 -10,10 -10)))' ) )
+    dst_feat.SetField( 'BlockName', 'Block2' )
+    blyr.CreateFeature( dst_feat )
+
+    # Block with point and line
+    dst_feat = ogr.Feature( feature_def = blyr.GetLayerDefn() )
+    dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt(
+        'GEOMETRYCOLLECTION( POINT(1 2),LINESTRING(0 0,1 1))' ) )
+    dst_feat.SetField( 'BlockName', 'Block3' )
     blyr.CreateFeature( dst_feat )
 
     # Write a block reference feature.
@@ -815,6 +830,20 @@ def ogr_dxf_17():
                                 [4.0,5.0,6.0] )
     lyr.CreateFeature( dst_feat )
 
+    # Write a Block2 reference feature.
+    dst_feat = ogr.Feature( feature_def = lyr.GetLayerDefn() )
+    dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt( 'POINT(350 100)' ))
+    dst_feat.SetField( 'Layer', 'abc' )
+    dst_feat.SetField( 'BlockName', 'Block2' )
+    lyr.CreateFeature( dst_feat )
+
+    # Write a Block3 reference feature.
+    dst_feat = ogr.Feature( feature_def = lyr.GetLayerDefn() )
+    dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt( 'POINT(400 100)' ))
+    dst_feat.SetField( 'Layer', 'abc' )
+    dst_feat.SetField( 'BlockName', 'Block3' )
+    lyr.CreateFeature( dst_feat )
+
     ds = None
 
     # Reopen and check contents.
@@ -829,11 +858,11 @@ def ogr_dxf_17():
         gdaltest.post_reason( 'Got wrong subclasses for feature 1.' )
         return 'fail'
 
-    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (LINESTRING (200 100,201 101),LINESTRING (201 100,200 101))' ):
+    if ogrtest.check_feature_geometry( feat, 'MULTILINESTRING ((200 100,201 101),(201 100,200 101))' ):
         print( 'Feature 1' )
         return 'fail'
 
-    # Check second feature.
+    # Check 2nd feature.
     feat = lyr.GetNextFeature()
     if feat.GetField('SubClasses') != 'AcDbEntity:AcDbPoint':
         gdaltest.post_reason( 'Got wrong subclasses for feature 2.' )
@@ -843,24 +872,36 @@ def ogr_dxf_17():
         print( 'Feature 2' )
         return 'fail'
 
-    # Check third feature.
+    # Check 3rd feature.
     feat = lyr.GetNextFeature()
     if feat.GetField('SubClasses') != 'AcDbEntity:AcDbBlockReference':
         gdaltest.post_reason( 'Got wrong subclasses for feature 3.' )
         return 'fail'
 
-    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (LINESTRING (249.971852502328943 201.04145741382942 0,250.619244948763452 198.930395088499495 0),LINESTRING (250.619244948763452 198.930395088499495 0,249.042985079183779 200.47850746040811 0),LINESTRING (249.042985079183779 200.47850746040811 0,251.04145741382942 200.365917469723854 0),LINESTRING (251.04145741382942 200.365917469723854 0,249.52149253959189 198.95854258617058 0),LINESTRING (249.52149253959189 198.95854258617058 0,249.943705004657858 201.013309916158363 0))' ):
+    if ogrtest.check_feature_geometry( feat, 'MULTILINESTRING ((249.971852502328943 201.04145741382942 0,250.619244948763452 198.930395088499495 0),(250.619244948763452 198.930395088499495 0,249.042985079183779 200.47850746040811 0),(249.042985079183779 200.47850746040811 0,251.04145741382942 200.365917469723854 0),(251.04145741382942 200.365917469723854 0,249.52149253959189 198.95854258617058 0),(249.52149253959189 198.95854258617058 0,249.943705004657858 201.013309916158363 0))' ):
         print( 'Feature 3' )
         return 'fail'
 
-    # Check fourth feature (scaled and rotated)
+    # Check 4th feature (scaled and rotated)
     feat = lyr.GetNextFeature()
     if feat.GetField('SubClasses') != 'AcDbEntity:AcDbBlockReference':
         gdaltest.post_reason( 'Got wrong subclasses for feature 4.' )
         return 'fail'
 
-    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (LINESTRING (300 100,300.964101615137736 106.330127018922198),LINESTRING (303.464101615137736 102.0,297.5 104.330127018922198))' ):
+    if ogrtest.check_feature_geometry( feat, 'MULTILINESTRING ((300 100,300.964101615137736 106.330127018922198), (303.464101615137736 102.0,297.5 104.330127018922198))' ):
         print( 'Feature 4' )
+        return 'fail'
+
+    # Check 5th feature
+    feat = lyr.GetNextFeature()
+    if ogrtest.check_feature_geometry( feat, 'MULTIPOLYGON (((360 110,360 120,370 120,370 110,360 110)),((360 90,360 80,370 80,370 90,360 90)))' ):
+        print( 'Feature 5' )
+        return 'fail'
+
+    # Check 6th feature
+    feat = lyr.GetNextFeature()
+    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (POINT (401 102),LINESTRING (400 100,401 101))' ):
+        print( 'Feature 5' )
         return 'fail'
 
     # Cleanup
@@ -994,7 +1035,7 @@ def ogr_dxf_19():
         gdaltest.post_reason( 'Got wrong subclasses for feature 1.' )
         return 'fail'
 
-    if ogrtest.check_feature_geometry( feat, 'GEOMETRYCOLLECTION (LINESTRING (249.971852502328943 201.04145741382942 0,250.619244948763452 198.930395088499495 0),LINESTRING (250.619244948763452 198.930395088499495 0,249.042985079183779 200.47850746040811 0),LINESTRING (249.042985079183779 200.47850746040811 0,251.04145741382942 200.365917469723854 0),LINESTRING (251.04145741382942 200.365917469723854 0,249.52149253959189 198.95854258617058 0),LINESTRING (249.52149253959189 198.95854258617058 0,249.943705004657858 201.013309916158363 0))' ):
+    if ogrtest.check_feature_geometry( feat, 'MULTILINESTRING ((249.971852502328943 201.04145741382942 0,250.619244948763452 198.930395088499495 0),(250.619244948763452 198.930395088499495 0,249.042985079183779 200.47850746040811 0),(249.042985079183779 200.47850746040811 0,251.04145741382942 200.365917469723854 0),(251.04145741382942 200.365917469723854 0,249.52149253959189 198.95854258617058 0),(249.52149253959189 198.95854258617058 0,249.943705004657858 201.013309916158363 0))' ):
         return 'fail'
 
     # Cleanup
@@ -2279,6 +2320,116 @@ def ogr_dxf_32():
     return 'success'
 
 ###############################################################################
+# Polyface Mesh tests
+
+def ogr_dxf_33():
+    ds = ogr.Open('data/polyface.dxf')
+    layer = ds.GetLayer(0)
+    feat = layer.GetNextFeature()
+    if feat.Layer != '0':
+        return 'fail #1'
+
+    geom = feat.GetGeometryRef()
+    if geom.GetGeometryType() != ogr.wkbPolyhedralSurfaceZ:
+        gdaltest.post_reason( 'did not get expected geometry type; got %s instead of wkbPolyhedralSurface', geom.GetGeometryType() )
+        return 'fail #2'
+
+    wkt_string = geom.ExportToIsoWkt()
+    wkt_string_expected = 'POLYHEDRALSURFACE Z (((0 0 0,1 0 0,1 1 0,0 1 0,0 0 0)),((0 0 0,1 0 0,1 0 1,0 0 1,0 0 0)),((1 0 0,1 1 0,1 1 1,1 0 1,1 0 0)),((1 1 0,1 1 1,0 1 1,0 1 0,1 1 0)),((0 0 0,0 1 0,0 1 1,0 0 1,0 0 0)),((0 0 1,1 0 1,1 1 1,0 1 1,0 0 1)))'
+    if wkt_string != wkt_string_expected:
+        gdaltest.post_reason( 'did not get expected WKT of extracted geometry')
+        return 'fail'
+
+    faces = geom.GetGeometryCount()
+    if faces != 6:
+        gdaltest.post_reason( 'did not get expected number of faces, got %d instead of %d', faces, 6)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Writing Triangle geometry and checking if it is written properly
+
+def ogr_dxf_34():
+    ds = ogr.GetDriverByName('DXF').CreateDataSource('tmp/triangle_test.dxf' )
+    lyr = ds.CreateLayer( 'entities' )
+    dst_feat = ogr.Feature( feature_def = lyr.GetLayerDefn() )
+    dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt( 'TRIANGLE ((0 0,0 1,1 0,0 0))' ) )
+
+    lyr.CreateFeature( dst_feat )
+    dst_feat = None
+
+    lyr = None
+    ds = None
+
+    # Read back.
+    ds = ogr.Open('tmp/triangle_test.dxf')
+    lyr = ds.GetLayer(0)
+
+    # Check first feature
+    feat = lyr.GetNextFeature()
+    geom = feat.GetGeometryRef()
+    expected_wkt = 'POLYGON ((0 0,0 1,1 0,0 0))'
+    received_wkt = geom.ExportToWkt()
+
+    if expected_wkt != received_wkt:
+        gdaltest.post_reason( 'did not get expected geometry back')
+        return 'fail'
+    ds = None
+
+    gdal.Unlink('tmp/triangle_test.dxf' )
+
+    return 'success'
+
+###############################################################################
+# Test reading files with only INSERT content (#7006)
+
+def ogr_dxf_36():
+
+    gdal.SetConfigOption('DXF_MERGE_BLOCK_GEOMETRIES', 'FALSE')
+    ds = ogr.Open('data/insert_only.dxf')
+    gdal.SetConfigOption('DXF_MERGE_BLOCK_GEOMETRIES', None)
+    lyr = ds.GetLayer(0)
+    if lyr.GetFeatureCount() != 5:
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Create a blocks layer only
+
+def ogr_dxf_37():
+
+    ds = ogr.GetDriverByName('DXF').CreateDataSource('/vsimem/ogr_dxf_37.dxf')
+
+    lyr = ds.CreateLayer( 'blocks' )
+
+    dst_feat = ogr.Feature( feature_def = lyr.GetLayerDefn() )
+    dst_feat.SetGeometryDirectly( ogr.CreateGeometryFromWkt( 'POINT (1 2)' ) )
+    lyr.CreateFeature( dst_feat )
+    dst_feat = None
+
+    lyr = None
+    ds = None
+
+    # Read back.
+    gdal.SetConfigOption('DXF_INLINE_BLOCKS', 'FALSE')
+    ds = ogr.Open('/vsimem/ogr_dxf_37.dxf')
+    gdal.SetConfigOption('DXF_INLINE_BLOCKS', None)
+    lyr = ds.GetLayerByName('blocks')
+
+    # Check first feature
+    feat = lyr.GetNextFeature()
+    if feat is None:
+        return 'fail'
+    ds = None
+
+    gdal.Unlink( '/vsimem/ogr_dxf_37.dxf')
+
+    return 'success'
+
+
+###############################################################################
 # cleanup
 
 def ogr_dxf_cleanup():
@@ -2323,6 +2474,10 @@ gdaltest_list = [
     ogr_dxf_30,
     ogr_dxf_31,
     ogr_dxf_32,
+    ogr_dxf_33,
+    ogr_dxf_34,
+    ogr_dxf_36,
+    ogr_dxf_37,
     ogr_dxf_cleanup ]
 
 if __name__ == '__main__':

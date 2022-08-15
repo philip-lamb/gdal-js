@@ -30,6 +30,8 @@
 #ifndef OGR_KMLNODE_H_INCLUDED
 #define OGR_KMLNODE_H_INCLUDED
 
+#ifdef HAVE_EXPAT
+
 #include "kml.h"
 #include "kmlutility.h"
 // std
@@ -41,6 +43,7 @@ std::string Nodetype2String(Nodetype const& type);
 
 class KMLNode
 {
+    CPL_DISALLOW_COPY_ASSIGN( KMLNode )
 public:
 
     KMLNode();
@@ -109,6 +112,10 @@ private:
 
     int nLayerNumber_;
     int nNumFeatures_;
+
+    void unregisterLayerIfMatchingThisNode(KML* poKML);
 };
+
+#endif // HAVE_EXPAT
 
 #endif /* KMLNODE_H_INCLUDED */

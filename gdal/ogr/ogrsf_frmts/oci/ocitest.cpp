@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  Oracle Spatial Driver
  * Purpose:  Test mainline for Oracle Spatial Driver low level functions.
@@ -30,7 +29,7 @@
 #include "ogr_oci.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                                main()                                */
@@ -39,16 +38,15 @@ CPL_CVSID("$Id$");
 int main( int nArgc, char ** papszArgv )
 
 {
-    OGROCISession *poSession = NULL;
+    OGROCISession *poSession = nullptr;
     const char *pszStatement = "SELECT * FROM NEPSITE";
-    int  nColCount;
     char **papszResult;
 
     if( nArgc > 1 )
         pszStatement = papszArgv[1];
 
     poSession = OGRGetOCISession( "system", "LetoKing", "" );
-    if( poSession == NULL )
+    if( poSession == nullptr )
         exit( 1 );
 
     OGROCIStatement oStatement( poSession );
@@ -56,7 +54,7 @@ int main( int nArgc, char ** papszArgv )
     if( oStatement.Execute( pszStatement ) == CE_Failure )
         exit( 2 );
 
-    while( (papszResult = oStatement.SimpleFetchRow()) != NULL )
+    while( (papszResult = oStatement.SimpleFetchRow()) != nullptr )
     {
         OGRFeatureDefn *poDefn = oStatement.GetResultDefn();
         int nColCount = poDefn->GetFieldCount();

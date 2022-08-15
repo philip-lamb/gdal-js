@@ -4,11 +4,11 @@ use Modern::Perl;
 
 my @pm = qw(lib/Geo/GDAL.pm lib/Geo/OGR.pm lib/Geo/OSR.pm lib/Geo/GDAL/Const.pm lib/Geo/GNM.pm);
 
-my %internal_methods = map {$_=>1} qw/TIEHASH CLEAR FIRSTKEY NEXTKEY FETCH STORE 
+my %internal_methods = map {$_=>1} qw/TIEHASH CLEAR FIRSTKEY NEXTKEY FETCH STORE
                                       DESTROY DISOWN ACQUIRE RELEASE_PARENTS
                                       UseExceptions DontUseExceptions this AllRegister RegisterAll
                                       callback_d_cp_vp/;
-my %private_methods = map {$_=>1} qw/PushErrorHandler PopErrorHandler Error ErrorReset 
+my %private_methods = map {$_=>1} qw/PushErrorHandler PopErrorHandler Error ErrorReset
                                      GetLastErrorNo GetLastErrorType GetLastErrorMsg/;
 my %constant_prefixes = map {$_=>1} qw/DCAP_/;
 
@@ -64,11 +64,13 @@ for my $pm (@pm) {
         }
         if ($package and /\@ISA/ and /=/) {
             my $isa = $_;
+            $isa =~ s/our //;
             $isa =~ s/\@ISA//;
             $isa =~ s/=//;
             $isa =~ s/qw//;
             $isa =~ s/\(//;
             $isa =~ s/\)//;
+            $isa =~ s/\///g;
             $isa =~ s/;//;
             my @isa = split /\s+/, $isa;
             for my $isa (@isa) {
@@ -184,10 +186,11 @@ for my $package (sort keys %package) {
     for my $sub (sort keys %{$package{$package}{dox}}) {
         next if $sub =~ /^\$/;
         if ($package{$package}{dox}{$sub} and not $package{$package}{subs}{$sub}) {
-            print STDERR "Warning: non-existing $package::$sub documented.\n";
+            print STDERR "Warning: non-existing $package","::","$sub documented.\n";
         }
     }
     print "#** \@class $package\n";
+    # package may have brief, details, todo, isa
     for my $l (@{$package{$package}{package_dox}}) {
         print "# $l\n";
     }
@@ -217,6 +220,8 @@ for my $package (sort keys %package) {
         next if $sub =~ /swig_/; # skip attribute setters and getters
         next if $sub =~ /GDAL_GCP_/; # skip GDAL::GCP package subroutines from class GDAL
 
+        next if $sub =~ /RELEASE_PARENT/;
+
         next if $sub =~ /GT_/; # done in methods geometry type test and modify
 
         # processed constants (Const.pm is not given to Doxygen at all)
@@ -237,7 +242,7 @@ for my $package (sort keys %package) {
         next if $sub =~ /^SRS_UL_/;
         next if $sub =~ /^SRS_UA_/;
         next if $sub =~ /^SRS_DN_/;
-        
+
         my $at = $package{$package}{dox}{$sub}{at} // '';
         next if $internal_methods{$sub} && !$at; # skip non-documented internal methods
 
@@ -318,5 +323,5 @@ sub fix_indentation {
                 $_ =~ s/^ //;
             }
         }
-    } 
+    }
 }

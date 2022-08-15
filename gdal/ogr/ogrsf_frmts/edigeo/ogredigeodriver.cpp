@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  EDIGEO Translator
  * Purpose:  Implements OGREDIGEODriver.
@@ -30,7 +29,7 @@
 #include "ogr_edigeo.h"
 #include "cpl_conv.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 extern "C" void RegisterOGREDIGEO();
 
@@ -43,7 +42,7 @@ extern "C" void RegisterOGREDIGEO();
 static int OGREDIGEODriverIdentify( GDALOpenInfo * poOpenInfo )
 
 {
-    return poOpenInfo->fpL != NULL &&
+    return poOpenInfo->fpL != nullptr &&
            EQUAL(CPLGetExtension(poOpenInfo->pszFilename), "thf");
 }
 
@@ -56,14 +55,14 @@ static GDALDataset *OGREDIGEODriverOpen( GDALOpenInfo * poOpenInfo )
 {
     if( poOpenInfo->eAccess == GA_Update ||
         !OGREDIGEODriverIdentify(poOpenInfo) )
-        return NULL;
+        return nullptr;
 
     OGREDIGEODataSource   *poDS = new OGREDIGEODataSource();
 
     if( !poDS->Open( poOpenInfo->pszFilename ) )
     {
         delete poDS;
-        poDS = NULL;
+        poDS = nullptr;
     }
 
     return poDS;
@@ -76,7 +75,7 @@ static GDALDataset *OGREDIGEODriverOpen( GDALOpenInfo * poOpenInfo )
 void RegisterOGREDIGEO()
 
 {
-    if( GDALGetDriverByName( "EDIGEO" ) != NULL )
+    if( GDALGetDriverByName( "EDIGEO" ) != nullptr )
         return;
 
     GDALDriver  *poDriver = new GDALDriver();
@@ -89,10 +88,10 @@ void RegisterOGREDIGEO()
     poDriver->SetMetadataItem( GDAL_DMD_HELPTOPIC, "drv_edigeo.html" );
 
     poDriver->SetMetadataItem( GDAL_DCAP_VIRTUALIO, "YES" );
+    poDriver->SetMetadataItem( GDAL_DCAP_FEATURE_STYLES, "YES" );
 
     poDriver->pfnOpen = OGREDIGEODriverOpen;
     poDriver->pfnIdentify = OGREDIGEODriverIdentify;
 
     GetGDALDriverManager()->RegisterDriver( poDriver );
 }
-

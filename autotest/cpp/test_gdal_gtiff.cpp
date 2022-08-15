@@ -1,44 +1,37 @@
 ///////////////////////////////////////////////////////////////////////////////
-// $Id: test_gdal_gtiff.cpp,v 1.3 2006/12/06 15:39:13 mloskot Exp $
 //
 // Project:  C++ Test Suite for GDAL/OGR
 // Purpose:  Test read/write functionality for GeoTIFF format.
 //           Ported from gcore/tiff_read.py, gcore/tiff_write.py.
 // Author:   Mateusz Loskot <mateusz@loskot.net>
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2006, Mateusz Loskot <mateusz@loskot.net>
-//  
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Library General Public
 // License as published by the Free Software Foundation; either
 // version 2 of the License, or (at your option) any later version.
-// 
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Library General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Library General Public
 // License along with this library; if not, write to the
 // Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 // Boston, MA 02111-1307, USA.
 ///////////////////////////////////////////////////////////////////////////////
-//
-//  $Log: test_gdal_gtiff.cpp,v $
-//  Revision 1.3  2006/12/06 15:39:13  mloskot
-//  Added file header comment and copyright note.
-//
-//
-///////////////////////////////////////////////////////////////////////////////
-#include <tut.h> // TUT
-#include <tut_gdal.h>
-#include <gdal_common.h>
-#include <gdal.h> // GDAL
+
+#include "gdal_unit_test.h"
+
+#include <cpl_string.h>
 #include <gdal_alg.h>
 #include <gdal_priv.h>
-#include <cpl_string.h>
-#include <sstream> // C++
+#include <gdal.h>
+
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -180,7 +173,7 @@ namespace tut
 
         GDALClose(dsDst);
         GDALClose(dsSrc);
-      
+
         // Re-open copied dataset and test it
         dsDst = GDALOpen(dst.c_str(), GA_ReadOnly);
         GDALRasterBandH band = GDALGetRasterBand(dsDst, rasters_.at(fileIdx).band_);
@@ -254,7 +247,7 @@ namespace tut
         src += rasters_.at(fileIdx).file_;
         GDALDatasetH ds = GDALOpen(src.c_str(), GA_ReadOnly);
         ensure("Can't open dataset: " + src, NULL != ds);
-        
+
         GDALRasterBandH band = GDALGetRasterBand(ds, rasters_.at(fileIdx).band_);
         ensure("Can't get raster band", NULL != band);
 

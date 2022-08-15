@@ -1,5 +1,4 @@
 /******************************************************************************
- * $Id$
  *
  * Project:  FMEObjects Translator
  * Purpose:  Implementation of the OGRFMELayer base class.  The class
@@ -33,7 +32,7 @@
 #include "cpl_conv.h"
 #include "cpl_string.h"
 
-CPL_CVSID("$Id$");
+CPL_CVSID("$Id$")
 
 /************************************************************************/
 /*                            OGRFMELayer()                             */
@@ -90,9 +89,7 @@ int OGRFMELayer::Initialize( IFMEFeature * poSchemaFeature,
                              OGRSpatialReference *poSRS )
 
 {
-    IFMEString  *poFMEString = NULL;
-
-    poFMEString = poDS->GetFMESession()->createString();
+    IFMEString* poFMEString = poDS->GetFMESession()->createString();
     poFMEFeature = poDS->GetFMESession()->createFeature();
 
     if( poSRS != NULL )
@@ -252,7 +249,8 @@ int OGRFMELayer::Initialize( IFMEFeature * poSchemaFeature,
         }
         else
         {
-            printf( "Not able to translate field type: %s\n",
+            CPLError( CE_Warning, CPLE_AppDefined,
+                      "Not able to translate field type: %s",
                     poAttrValue->data() );
             CSLDestroy( papszTokens );
             continue;

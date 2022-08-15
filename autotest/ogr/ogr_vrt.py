@@ -583,7 +583,7 @@ def ogr_vrt_14():
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
 
-    shp_ds.ExecuteSQL('CREATE SPATIAL INDEX on test');
+    shp_ds.ExecuteSQL('CREATE SPATIAL INDEX on test')
 
     shp_ds = None
 
@@ -953,7 +953,7 @@ def ogr_vrt_20():
     feat.SetGeometryDirectly(geom)
     shp_lyr.CreateFeature(feat)
 
-    shp_ds.ExecuteSQL('CREATE SPATIAL INDEX on test');
+    shp_ds.ExecuteSQL('CREATE SPATIAL INDEX on test')
 
     shp_ds = None
 
@@ -1366,7 +1366,42 @@ def ogr_vrt_23(shared_ds_flag = ''):
 
 def ogr_vrt_24():
 
-    return ogr_vrt_23(' shared="1"')
+    ret = ogr_vrt_23(' shared="1"')
+    if ret != 'success':
+        return ret
+
+    rec1 = """<OGRVRTDataSource>
+    <OGRVRTLayer name="test">
+        <SrcDataSource shared="1">/vsimem/rec2.vrt</SrcDataSource>
+    </OGRVRTLayer>
+</OGRVRTDataSource>"""
+
+    rec2 = """<OGRVRTDataSource>
+    <OGRVRTLayer name="test">
+        <SrcDataSource shared="1">/vsimem/rec2.vrt</SrcDataSource>
+    </OGRVRTLayer>
+</OGRVRTDataSource>"""
+
+    gdal.FileFromMemBuffer('/vsimem/rec1.vrt', rec1)
+    gdal.FileFromMemBuffer('/vsimem/rec2.vrt', rec2)
+
+    ds = ogr.Open('/vsimem/rec1.vrt')
+    if ds is None:
+        return 'fail'
+
+    gdal.ErrorReset()
+    gdal.PushErrorHandler('CPLQuietErrorHandler')
+    ds.GetLayer(0).GetLayerDefn()
+    ds.GetLayer(0).GetFeatureCount()
+    gdal.PopErrorHandler()
+    if gdal.GetLastErrorMsg() == '':
+        gdaltest.post_reason('error expected !')
+        return 'fail'
+
+    gdal.Unlink('/vsimem/rec1.vrt')
+    gdal.Unlink('/vsimem/rec2.vrt')
+
+    return 'success'
 
 
 ###############################################################################
@@ -1841,7 +1876,7 @@ def ogr_vrt_29():
 
     feat = ogr.Feature(lyr.GetLayerDefn())
     feat.SetField(0, 1000)
-    feat.SetGeometry(ogr.CreateGeometryFromWkt('POINT(-180 0)'))
+    feat.SetGeometry(ogr.CreateGeometryFromWkt('POINT(-180 91)'))
     lyr.CreateFeature(feat)
     feat = None
 
@@ -1890,7 +1925,7 @@ def ogr_vrt_29():
     lyr = ds.GetLayer(0)
 
     feat = lyr.GetNextFeature()
-    feat.SetGeometry(ogr.CreateGeometryFromWkt('POINT(-180 0)'))
+    feat.SetGeometry(ogr.CreateGeometryFromWkt('POINT(-180 91)'))
     gdal.PushErrorHandler('CPLQuietErrorHandler')
     ret = lyr.SetFeature(feat)
     gdal.PopErrorHandler()
@@ -1900,7 +1935,7 @@ def ogr_vrt_29():
     feat = None
 
     feat = ogr.Feature(lyr.GetLayerDefn())
-    feat.SetGeometry(ogr.CreateGeometryFromWkt('POINT(-180 0)'))
+    feat.SetGeometry(ogr.CreateGeometryFromWkt('POINT(-180 91)'))
     gdal.PushErrorHandler('CPLQuietErrorHandler')
     ret = lyr.CreateFeature(feat)
     gdal.PopErrorHandler()

@@ -12,15 +12,18 @@ GEOJSON_OBJ = \
 	ogrgeojsonutils.obj \
 	ogrgeojsonreader.obj \
 	ogrgeojsonwriter.obj \
+	ogresrijsondriver.obj \
 	ogresrijsonreader.obj \
-	ogrtopojsonreader.obj
+	ogrtopojsondriver.obj \
+	ogrtopojsonreader.obj \
+	ogrgeojsonseqdriver.obj
 
 EXTRAFLAGS = -I. -I.. -I..\.. -Ilibjson
 
 !INCLUDE $(GDAL_ROOT)\nmake.opt
 
 # TODO: Do we want to include GeoJSON driver by default
-#       or if user asks for it? Now it's on by default.
+#       or if user asks for it? Now it is on by default.
 
 OBJ	=	$(GEOJSON_OBJ)
 

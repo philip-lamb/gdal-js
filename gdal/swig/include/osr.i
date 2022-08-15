@@ -27,12 +27,18 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
+#ifdef SWIGPYTHON
+%nothread;
+#endif
+
 %include constraints.i
 
 #ifdef PERL_CPAN_NAMESPACE
 %module "Geo::OSR"
 #elif defined(SWIGCSHARP)
 %module Osr
+#elif defined(SWIGPYTHON)
+%module (package="osgeo") osr
 #else
 %module osr
 #endif
@@ -98,6 +104,8 @@ typedef char retStringAndCPLFree;
 #include <iostream>
 using namespace std;
 
+#define CPL_SUPRESS_CPLUSPLUS
+
 #include "cpl_string.h"
 #include "cpl_conv.h"
 
@@ -117,10 +125,6 @@ typedef int OGRErr;
 
 #if defined(SWIGPYTHON)
 %include osr_python.i
-#elif defined(SWIGRUBY)
-%include typemaps_ruby.i
-#elif defined(SWIGPHP4)
-%include typemaps_php.i
 #elif defined(SWIGCSHARP)
 %include osr_csharp.i
 #elif defined(SWIGJAVA)
@@ -354,6 +358,11 @@ public:
     return OSRSetLinearUnitsAndUpdateParameters( self, name, to_meters );
   }
 
+  double GetTargetLinearUnits( const char *target_key ) {
+    // Return code ignored.
+    return OSRGetTargetLinearUnits( self, target_key, 0 );
+  }
+
   double GetLinearUnits() {
     // Return code ignored.
     return OSRGetLinearUnits( self, 0 );
@@ -415,6 +424,13 @@ public:
   OGRErr AutoIdentifyEPSG() {
     return OSRAutoIdentifyEPSG( self );
   }
+
+#ifdef SWIGPYTHON
+  void FindMatches( char** options = NULL, OSRSpatialReferenceShadow*** matches = NULL, int* nvalues = NULL, int** confidence_values = NULL )
+  {
+        *matches = OSRFindMatches(self, options, nvalues, confidence_values);
+  }
+#endif
 
   OGRErr SetProjection( char const *arg ) {
     return OSRSetProjection( self, arg );
@@ -631,6 +647,13 @@ public:
                     double fe, double fn ) {
     return OSRSetMercator( self, clat, clong,
                            scale, fe, fn );
+  }
+
+%feature( "kwargs" ) SetMercator2SP;
+  OGRErr SetMercator2SP( double stdp1,
+                         double clat, double clong,
+                         double fe, double fn ) {
+    return OSRSetMercator2SP( self, stdp1, clat, clong, fe, fn );
   }
 
 %feature( "kwargs" ) SetMollweide;
@@ -940,6 +963,11 @@ public:
     return OSRMorphFromESRI(self);
   }
 
+%newobject ConvertToOtherProjection;
+  OSRSpatialReferenceShadow* ConvertToOtherProjection(const char* other_projection, char **options = NULL) {
+    return OSRConvertToOtherProjection(self, other_projection, options);
+  }
+
 } /* %extend */
 };
 
@@ -1017,3 +1045,8 @@ public:
     return obj;
 }
 %}
+
+
+#ifdef SWIGPYTHON
+%thread;
+#endif

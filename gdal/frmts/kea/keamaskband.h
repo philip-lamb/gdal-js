@@ -35,7 +35,7 @@
 
 #include "libkea_headers.h"
 
-class KEAMaskBand : public GDALRasterBand
+class KEAMaskBand final: public GDALRasterBand
 {
     int m_nSrcBand;
     kealib::KEAImageIO  *m_pImageIO; // our image access pointer - refcounted
@@ -46,9 +46,8 @@ public:
 
 protected:
     // we just override these functions from GDALRasterBand
-    virtual CPLErr IReadBlock( int, int, void * );
-    virtual CPLErr IWriteBlock( int, int, void * );
-
+    virtual CPLErr IReadBlock( int, int, void * ) override;
+    virtual CPLErr IWriteBlock( int, int, void * ) override;
 };
 
 #endif //KEAMASKBAND_H

@@ -30,12 +30,13 @@
 # DEALINGS IN THE SOFTWARE.
 ###############################################################################
 
+import struct
 import sys
 import os
 
 sys.path.append( '../pymod' )
 
-from osgeo import gdal, ogr
+from osgeo import gdal, ogr, osr
 import gdaltest
 import ogrtest
 
@@ -330,6 +331,7 @@ def test_gdalwarp_lib_16():
 
     ds = gdal.Warp('/vsimem/test_gdalwarp_lib_16.vrt', 'tmp/testgdalwarp_gcp.tif', format = 'VRT')
     if ds is None:
+        gdaltest.post_reason('fail')
         return 'fail'
 
     if ds.GetRasterBand(1).Checksum() != 4672:
@@ -340,6 +342,13 @@ def test_gdalwarp_lib_16():
     ds = None
 
     gdal.Unlink('/vsimem/test_gdalwarp_lib_16.vrt')
+
+    # Cannot write file
+    with gdaltest.error_handler():
+        ds = gdal.Warp('/i_dont/exist/test_gdalwarp_lib_16.vrt', 'tmp/testgdalwarp_gcp.tif', format = 'VRT')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
 
     return 'success'
 
@@ -583,11 +592,12 @@ def test_gdalwarp_lib_104():
 
 def test_gdalwarp_lib_105():
 
+    # with proj 4.9.3 this will success. We limit the width and height
+    # otherwise a very big raster will be created with 4.9.3 which may cause
+    # hangups in Travis MacOSX
     with gdaltest.error_handler():
-        ds = gdal.Warp('', [ '../gdrivers/data/small_world_pct.tif', '../gcore/data/byte.tif' ], format = 'MEM', dstSRS = 'EPSG:32645')
-    if ds is not None:
-        gdaltest.post_reason('Did not expected dataset')
-        return 'fail'
+        gdal.Warp('', [ '../gdrivers/data/small_world_pct.tif', '../gcore/data/byte.tif' ], format = 'MEM', dstSRS = 'EPSG:32645', width = 100, height = 100)
+
     return 'success'
 
 ###############################################################################
@@ -1092,6 +1102,600 @@ def test_gdalwarp_lib_129():
     return 'success'
 
 ###############################################################################
+# Test automatic detection and setting of alpha channel, and setting RGB on
+# GTiff output
+
+def test_gdalwarp_lib_130():
+
+    src_ds = gdal.GetDriverByName('GTiff').Create(
+        '/vsimem/test_gdalwarp_lib_130.tif', 1, 1, 5, options = ['PHOTOMETRIC=RGB'])
+    src_ds.SetGeoTransform([100,1,0,200,0,-1])
+    src_ds.GetRasterBand(5).SetColorInterpretation(gdal.GCI_AlphaBand)
+    src_ds.GetRasterBand(1).Fill(1)
+    src_ds.GetRasterBand(2).Fill(2)
+    src_ds.GetRasterBand(3).Fill(3)
+    src_ds.GetRasterBand(4).Fill(4)
+    src_ds.GetRasterBand(5).Fill(255)
+
+    ds = gdal.Warp('/vsimem/test_gdalwarp_lib_130_dst.tif', src_ds)
+    if ds.GetRasterBand(1).GetColorInterpretation() != gdal.GCI_RedBand:
+        gdaltest.post_reason('bad color interpretation')
+        return 'fail'
+    if ds.GetRasterBand(5).GetColorInterpretation() != gdal.GCI_AlphaBand:
+        gdaltest.post_reason('bad color interpretation')
+        return 'fail'
+    expected_val = [1,2,3,4,255]
+    for i in range(5):
+        data = struct.unpack('B' * 1, ds.GetRasterBand(i+1).ReadRaster())[0]
+        if data != expected_val[i]:
+            gdaltest.post_reason('bad checksum')
+            print(i)
+            print(data)
+            return 'fail'
+
+    # Wrap onto existing file
+    for i in range(5):
+        ds.GetRasterBand(i+1).Fill(0)
+    gdal.Warp(ds, src_ds)
+    for i in range(5):
+        data = struct.unpack('B' * 1, ds.GetRasterBand(i+1).ReadRaster())[0]
+        if data != expected_val[i]:
+            gdaltest.post_reason('bad checksum')
+            print(i)
+            print(data)
+            return 'fail'
+
+    src_ds = None
+    ds = None
+
+    if gdal.VSIStatL('/vsimem/test_gdalwarp_lib_130_dst.tif.aux.xml') is not None:
+        gdaltest.post_reason('got PAM file')
+        return 'fail'
+
+    gdal.Unlink('/vsimem/test_gdalwarp_lib_130.tif')
+    gdal.Unlink('/vsimem/test_gdalwarp_lib_130_dst.tif')
+
+    return 'success'
+
+###############################################################################
+# Test -nosrcalpha
+
+def test_gdalwarp_lib_131():
+
+    src_ds = gdal.GetDriverByName('GTiff').Create(
+        '/vsimem/test_gdalwarp_lib_131.tif', 1, 1, 2)
+    src_ds.SetGeoTransform([100,1,0,200,0,-1])
+    src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_AlphaBand)
+    src_ds.GetRasterBand(1).Fill(1)
+    src_ds.GetRasterBand(2).Fill(0)
+
+    ds = gdal.Warp('/vsimem/test_gdalwarp_lib_131_dst.tif', src_ds, options = '-nosrcalpha')
+    expected_val = [1,0]
+    for i in range(2):
+        data = struct.unpack('B' * 1, ds.GetRasterBand(i+1).ReadRaster())[0]
+        if data != expected_val[i]:
+            gdaltest.post_reason('bad checksum')
+            print(i)
+            print(data)
+            return 'fail'
+    src_ds = None
+    ds = None
+    gdal.Unlink('/vsimem/test_gdalwarp_lib_131.tif')
+    gdal.Unlink('/vsimem/test_gdalwarp_lib_131_dst.tif')
+    gdal.Unlink('/vsimem/test_gdalwarp_lib_131_dst.tif.aux.xml')
+
+    return 'success'
+
+###############################################################################
+# Test that alpha blending works by warping onto an existing dataset
+# with alpha > 0 and < 255
+
+def test_gdalwarp_lib_132():
+
+    for dt in [ gdal.GDT_Byte, gdal.GDT_Float32 ]:
+        src_ds = gdal.GetDriverByName('GTiff').Create(
+            '/vsimem/test_gdalwarp_lib_132.tif', 33, 1, 2, dt)
+        src_ds.SetGeoTransform([100,1,0,200,0,-1])
+        src_ds.GetRasterBand(2).SetColorInterpretation(gdal.GCI_AlphaBand)
+
+        ds = gdal.Translate('/vsimem/test_gdalwarp_lib_132_dst.tif', src_ds)
+        dst_grey = 60
+        dst_alpha = 100
+        ds.GetRasterBand(1).Fill(dst_grey)
+        ds.GetRasterBand(2).Fill(dst_alpha)
+
+        src_grey = 170
+        src_alpha = 200
+        src_ds.GetRasterBand(1).Fill(src_grey)
+        src_ds.GetRasterBand(2).Fill(src_alpha)
+        gdal.Warp(ds, src_ds)
+        expected_alpha = int(src_alpha + dst_alpha * (255 - src_alpha) / 255. + 0.5)
+        expected_grey = int((src_grey * src_alpha + dst_grey * dst_alpha * (255 - src_alpha) / 255.) / expected_alpha + 0.5)
+        expected_val = [expected_grey,expected_alpha]
+        for i in range(2):
+            for x in range(33):
+                data = struct.unpack('B' * 1, ds.GetRasterBand(i+1).ReadRaster(i, 0, 1, 1, buf_type = gdal.GDT_Byte))[0]
+                if abs(data - expected_val[i]) > 1:
+                    gdaltest.post_reason('bad checksum')
+                    print(dt)
+                    print(i)
+                    print(x)
+                    print(data)
+                    print(expected_val[i])
+                    return 'fail'
+        ds = None
+
+        src_ds = None
+
+        gdal.Unlink('/vsimem/test_gdalwarp_lib_132.tif')
+        gdal.Unlink('/vsimem/test_gdalwarp_lib_132_dst.tif')
+        gdal.Unlink('/vsimem/test_gdalwarp_lib_132_dst.tif.aux.xml')
+
+    return 'success'
+
+###############################################################################
+# Test cutline with multiple touching polygons
+
+def test_gdalwarp_lib_133():
+
+    ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('/vsimem/test_gdalwarp_lib_133.shp')
+    lyr = ds.CreateLayer('cutline')
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetGeometry(ogr.CreateGeometryFromWkt('POLYGON((0 0,1 0,1 1,0 1,0 0))'))
+    lyr.CreateFeature(f)
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetGeometry(ogr.CreateGeometryFromWkt('POLYGON((1 0,2 0,2 1,1 1,1 0))'))
+    lyr.CreateFeature(f)
+    f = None
+    ds = None
+
+    src_ds = gdal.GetDriverByName('MEM').Create('', 4, 1)
+    src_ds.SetGeoTransform([0,1,0,1,0,-1])
+    src_ds.GetRasterBand(1).Fill(255)
+    ds = gdal.Warp('', src_ds, format = 'MEM', cutlineDSName = '/vsimem/test_gdalwarp_lib_133.shp')
+    if ds is None:
+        return 'fail'
+
+    if ds.GetRasterBand(1).Checksum() != 5:
+        print(ds.GetRasterBand(1).Checksum())
+        gdaltest.post_reason('Bad checksum')
+        return 'fail'
+
+    ds = None
+
+    ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('/vsimem/test_gdalwarp_lib_133.shp')
+
+    return 'success'
+
+###############################################################################
+# Test SRC_METHOD=NO_GEOTRANSFORM and DST_METHOD=NO_GEOTRANSFORM (#6721)
+
+def test_gdalwarp_lib_134():
+
+    ds = ogr.GetDriverByName('ESRI Shapefile').CreateDataSource('/vsimem/test_gdalwarp_lib_134.shp')
+    lyr = ds.CreateLayer('cutline')
+    f = ogr.Feature(lyr.GetLayerDefn())
+    f.SetGeometry(ogr.CreateGeometryFromWkt('POLYGON((2 2,2 18,18 18,18 2,2 2))'))
+    lyr.CreateFeature(f)
+    f = None
+    ds = None
+
+    src_src_ds = gdal.Open('../gcore/data/byte.tif')
+    src_ds = gdal.GetDriverByName('MEM').Create('', 20, 20)
+    src_ds.GetRasterBand(1).WriteRaster( 0, 0, 20, 20, src_src_ds.GetRasterBand(1).ReadRaster() )
+    ds = gdal.Warp('', src_ds, format = 'MEM', transformerOptions = [ 'SRC_METHOD=NO_GEOTRANSFORM', 'DST_METHOD=NO_GEOTRANSFORM'], outputBounds = [1,2,4,6])
+    if ds is None:
+        return 'fail'
+
+    if ds.GetRasterBand(1).ReadRaster() != src_src_ds.GetRasterBand(1).ReadRaster(1,2,4-1,6-2):
+        gdaltest.post_reason('Bad checksum')
+        return 'fail'
+
+    ds = None
+
+    ds = gdal.Warp('', src_ds, format = 'MEM', transformerOptions = [ 'SRC_METHOD=NO_GEOTRANSFORM', 'DST_METHOD=NO_GEOTRANSFORM'], cutlineDSName = '/vsimem/test_gdalwarp_lib_134.shp', cropToCutline = True)
+    if ds is None:
+        return 'fail'
+
+    if ds.GetRasterBand(1).ReadRaster() != src_src_ds.GetRasterBand(1).ReadRaster(2,2,16,16):
+        gdaltest.post_reason('Bad checksum')
+        return 'fail'
+
+    ds = None
+
+    ogr.GetDriverByName('ESRI Shapefile').DeleteDataSource('/vsimem/test_gdalwarp_lib_134.shp')
+
+    return 'success'
+
+###############################################################################
+# Test vertical datum shift
+
+def test_gdalwarp_lib_135():
+
+    src_ds = gdal.GetDriverByName('MEM').Create('', 1, 1)
+    src_ds.SetGeoTransform([500000,1,0,4000000,0,-1])
+    src_ds.GetRasterBand(1).Fill(100)
+
+    grid_ds = gdal.GetDriverByName('GTiff').Create('/vsimem/grid.tif', 1, 1)
+    sr = osr.SpatialReference()
+    sr.SetFromUserInput("WGS84")
+    grid_ds.SetProjection(sr.ExportToWkt())
+    grid_ds.SetGeoTransform([-180,360,0,90,0,-180])
+    grid_ds.GetRasterBand(1).Fill(20)
+    grid_ds = None
+
+    grid_ds = gdal.GetDriverByName('GTiff').Create('/vsimem/grid2.tif', 1, 1)
+    sr = osr.SpatialReference()
+    sr.SetFromUserInput("WGS84")
+    grid_ds.SetProjection(sr.ExportToWkt())
+    grid_ds.SetGeoTransform([-180,360,0,90,0,-180])
+    grid_ds.GetRasterBand(1).Fill(5)
+    grid_ds = None
+
+    gdal.GetDriverByName('GTiff').Create('/vsimem/ungeoref_grid.tif', 1, 1)
+
+    # Forward transform
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Inverse transform
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 80:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Both transforms
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=/vsimem/grid2.tif +vunits=m +no_defs')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 115:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Both transforms, but none of them have geoidgrids
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = 'EPSG:32631+5730',
+                   dstSRS = 'EPSG:4326+5621')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 100:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Both transforms being a no-op
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 100:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Both transforms to anonymous VRT
+    ds = gdal.Warp('', src_ds, format = 'VRT',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=/vsimem/grid2.tif +vunits=m +no_defs')
+    src_ds = None # drop the ref to src_ds before for fun
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 115:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    src_ds = gdal.GetDriverByName('MEM').Create('', 1, 1)
+    src_ds.SetGeoTransform([500000,1,0,4000000,0,-1])
+    src_ds.GetRasterBand(1).Fill(100)
+
+    # Both transforms to regular VRT
+    gdal.GetDriverByName('GTiff').CreateCopy('/vsimem/dem.tif', src_ds)
+    gdal.Warp('/vsimem/tmp.vrt', '/vsimem/dem.tif', format = 'VRT',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=/vsimem/grid2.tif +vunits=m +no_defs')
+    ds = gdal.Open('/vsimem/tmp.vrt')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    ds = None
+    gdal.Unlink('/vsimem/dem.tif')
+    gdal.Unlink('/vsimem/tmp.vrt')
+    if data != 115:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Missing grid in forward path
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                    srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=i_dont_exist.tif +vunits=m +no_defs',
+                    dstSRS = 'EPSG:4979')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Missing grid in forward path with PROJ_LIB
+    old_proj_lib = os.environ.get('PROJ_LIB', None)
+    os.environ['PROJ_LIB'] = '/i_dont/exist'
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                    srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=i_dont_exist.tif +vunits=m +no_defs',
+                    dstSRS = 'EPSG:4979')
+    if old_proj_lib:
+        os.environ['PROJ_LIB'] = old_proj_lib
+    else:
+        del os.environ['PROJ_LIB']
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Missing grid in forward path
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                    srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=~/i_dont_exist.tif +vunits=m +no_defs',
+                    dstSRS = 'EPSG:4979')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Missing grid in forward path
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                    srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/i_dont/exist.tif +vunits=m +no_defs',
+                    dstSRS = 'EPSG:4979')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Ungeoref grid in forward path
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                    srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/ungeoref_grid.tif +vunits=m +no_defs',
+                    dstSRS = 'EPSG:4979')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Missing grid in inverse path
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=i_dont_exist.tif +vunits=m +no_defs')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Ungeoref grid in inverse path
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=/vsimem/ungeoref_grid.tif +vunits=m +no_defs')
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    # Missing grid in forward path, but this is OK
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                    srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=@i_dont_exist.tif +vunits=m +no_defs',
+                    dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 100:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Missing grid in inverse path but this is OK
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs',
+                   dstSRS = '+proj=longlat +datum=WGS84 +geoidgrids=@i_dont_exist.tif +vunits=m +no_defs')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 100:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+
+    # Forward transform with explicit m unit
+    src_ds = gdal.GetDriverByName('MEM').Create('', 1, 1)
+    src_ds.SetGeoTransform([500000,1,0,4000000,0,-1])
+    sr = osr.SpatialReference()
+    sr.ImportFromProj4('+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs')
+    src_ds.SetProjection(sr.ExportToWkt())
+    src_ds.GetRasterBand(1).Fill(100)
+    src_ds.GetRasterBand(1).SetUnitType('m')
+
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Forward transform with explicit ft unit
+    src_ds = gdal.GetDriverByName('MEM').Create('', 1, 1, 1, gdal.GDT_Float32)
+    src_ds.SetGeoTransform([500000,1,0,4000000,0,-1])
+    sr = osr.SpatialReference()
+    sr.ImportFromProj4('+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs')
+    src_ds.SetProjection(sr.ExportToWkt())
+    src_ds.GetRasterBand(1).Fill(100 / 0.3048)
+    src_ds.GetRasterBand(1).SetUnitType('ft')
+
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   dstSRS = 'EPSG:4979', outputType = gdal.GDT_Byte)
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Forward transform with explicit unhandled unit
+    src_ds = gdal.GetDriverByName('MEM').Create('', 1, 1)
+    src_ds.SetGeoTransform([500000,1,0,4000000,0,-1])
+    sr = osr.SpatialReference()
+    sr.ImportFromProj4('+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif +vunits=m +no_defs')
+    src_ds.SetProjection(sr.ExportToWkt())
+    src_ds.GetRasterBand(1).Fill(100)
+    src_ds.GetRasterBand(1).SetUnitType('unhandled')
+
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                       dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    grid_ds = gdal.GetDriverByName('GTiff').Create('/vsimem/empty_grid.tif', 1, 1)
+    sr = osr.SpatialReference()
+    sr.SetFromUserInput("WGS84")
+    grid_ds.SetProjection(sr.ExportToWkt())
+    grid_ds.SetGeoTransform([-180,360,0,90,0,-180])
+    grid_ds.GetRasterBand(1).Fill(255)
+    grid_ds.GetRasterBand(1).SetNoDataValue(255)
+    grid_ds = None
+
+    src_ds = gdal.GetDriverByName('MEM').Create('', 1, 1)
+    src_ds.SetGeoTransform([500000,1,0,4000000,0,-1])
+    src_ds.GetRasterBand(1).Fill(100)
+
+    # Test missing shift values in area of interest
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/empty_grid.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 100:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Same, but make it an error
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/empty_grid.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979',
+                   transformerOptions = ['ERROR_ON_MISSING_VERT_SHIFT=YES'] )
+    if ds is not None:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Test several grids
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif,/vsimem/empty_grid.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Same, but different order
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/empty_grid.tif,/vsimem/grid.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Test several grids, with some missing
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif,i_dont_exist.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    if ds is not None:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Test several grids, with some missing, but that's OK
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=/vsimem/grid.tif,@i_dont_exist.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 120:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    # Test several grids, with all missing, but that's OK
+    ds = gdal.Warp('', src_ds, format = 'MEM',
+                   srcSRS = '+proj=utm +zone=31 +datum=WGS84 +units=m +geoidgrids=@i_dont_exist.tif,@i_dont_exist_either.tif +vunits=m +no_defs',
+                   dstSRS = 'EPSG:4979')
+    data = struct.unpack('B' * 1, ds.GetRasterBand(1).ReadRaster())[0]
+    if data != 100:
+        gdaltest.post_reason('Bad value')
+        print(data)
+        return 'fail'
+
+    gdal.GetDriverByName('GTiff').Delete('/vsimem/grid.tif')
+    gdal.GetDriverByName('GTiff').Delete('/vsimem/grid2.tif')
+    gdal.GetDriverByName('GTiff').Delete('/vsimem/ungeoref_grid.tif')
+    gdal.GetDriverByName('GTiff').Delete('/vsimem/empty_grid.tif')
+
+    return 'success'
+
+###############################################################################
+# Test error code path linked with failed warper initialization
+
+def test_gdalwarp_lib_136():
+
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', '../gcore/data/utmsmall.tif', format = 'MEM', warpOptions = [ 'CUTLINE=invalid' ])
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    with gdaltest.error_handler():
+        ds = gdal.Warp('', '../gcore/data/utmsmall.tif', format = 'VRT', warpOptions = [ 'CUTLINE=invalid' ])
+    if ds is not None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
+# Test warping two input datasets with different SRS, with no explicit target SRS
+
+def test_gdalwarp_lib_several_sources_with_different_srs_no_explicit_target_srs():
+    src_ds = gdal.Open('../gcore/data/byte.tif')
+    src_ds_32611_left = gdal.Translate('', src_ds, format = 'MEM',
+                                       srcWin = [0,0,10,20],
+                                       outputSRS = 'EPSG:32611')
+    src_ds_32611_right = gdal.Translate('', src_ds, format = 'MEM',
+                                       srcWin = [10,0,10,20],
+                                       outputSRS = 'EPSG:32611')
+    src_ds_4326_right = gdal.Warp('', src_ds_32611_right, format = 'MEM',
+                                  dstSRS = 'EPSG:4326')
+    out_ds = gdal.Warp('', [src_ds_4326_right, src_ds_32611_left], format = 'MEM')
+    if out_ds is None:
+        gdaltest.post_reason('fail')
+        return 'fail'
+    if out_ds.RasterXSize != 23:
+        gdaltest.post_reason('fail')
+        print(out_ds.RasterXSize)
+        return 'fail'
+    cs = out_ds.GetRasterBand(1).Checksum()
+    if cs != 5048:
+        gdaltest.post_reason('fail')
+        print(cs)
+        return 'fail'
+
+    return 'success'
+
+###############################################################################
 # Cleanup
 
 def test_gdalwarp_lib_cleanup():
@@ -1169,6 +1773,14 @@ gdaltest_list = [
     test_gdalwarp_lib_127,
     test_gdalwarp_lib_128,
     test_gdalwarp_lib_129,
+    test_gdalwarp_lib_130,
+    test_gdalwarp_lib_131,
+    test_gdalwarp_lib_132,
+    test_gdalwarp_lib_133,
+    test_gdalwarp_lib_134,
+    test_gdalwarp_lib_135,
+    test_gdalwarp_lib_136,
+    test_gdalwarp_lib_several_sources_with_different_srs_no_explicit_target_srs,
     test_gdalwarp_lib_cleanup,
     ]
 

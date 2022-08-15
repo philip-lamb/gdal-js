@@ -542,6 +542,33 @@ int ContourGenerate( GDALRasterBandShadow *srcBand,
 %clear OGRLayerShadow* dstLayer;
 %clear  (int fixedLevelCount, double *fixedLevels );
 
+#ifndef SWIGJAVA
+%feature( "kwargs" ) ContourGenerateEx;
+#endif
+%apply Pointer NONNULL {GDALRasterBandShadow *srcBand, OGRLayerShadow* dstLayer};
+%inline %{
+int ContourGenerateEx( GDALRasterBandShadow *srcBand,
+                       OGRLayerShadow* dstLayer,
+                       char** options = NULL,
+                       GDALProgressFunc callback = NULL,
+                       void* callback_data = NULL )
+{
+    CPLErr eErr;
+
+    CPLErrorReset();
+
+    eErr =  GDALContourGenerateEx( srcBand,
+                                   dstLayer,
+                                   options,
+                                   callback,
+                                   callback_data);
+
+    return eErr;
+}
+%}
+%clear GDALRasterBandShadow *srcBand;
+%clear OGRLayerShadow* dstLayer;
+
 /************************************************************************/
 /*                        AutoCreateWarpedVRT()                         */
 /************************************************************************/
@@ -596,13 +623,17 @@ GDALDatasetShadow*  CreatePansharpenedVRT( const char* pszXML,
 /*                             Transformer                              */
 /************************************************************************/
 
+#ifndef SWIGPYTHON
 %rename (Transformer) GDALTransformerInfoShadow;
+#endif
+
 class GDALTransformerInfoShadow {
 private:
   GDALTransformerInfoShadow();
 public:
 %extend {
 
+#ifndef SWIGPYTHON
   GDALTransformerInfoShadow( GDALDatasetShadow *src, GDALDatasetShadow *dst,
                              char **options ) {
     GDALTransformerInfoShadow *obj = (GDALTransformerInfoShadow*)
@@ -610,6 +641,7 @@ public:
                                          options );
     return obj;
   }
+#endif
 
   ~GDALTransformerInfoShadow() {
     GDALDestroyTransformer( self );
@@ -693,3 +725,44 @@ public:
 
 } /*extend */
 };
+
+#ifdef SWIGPYTHON
+%newobject Transformer;
+%inline %{
+  GDALTransformerInfoShadow* Transformer( GDALDatasetShadow *src, GDALDatasetShadow *dst,
+                             char **options ) {
+    GDALTransformerInfoShadow *obj = (GDALTransformerInfoShadow*)
+       GDALCreateGenImgProjTransformer2( (GDALDatasetH)src, (GDALDatasetH)dst,
+                                         options );
+    return obj;
+  }
+%}
+#endif
+
+/************************************************************************/
+/*                        ApplyVerticalShiftGrid()                      */
+/************************************************************************/
+
+%newobject ApplyVerticalShiftGrid;
+%apply Pointer NONNULL {GDALDatasetShadow *src_ds, GDALDatasetShadow *grid_ds};
+#ifndef SWIGJAVA
+%feature( "kwargs" ) ApplyVerticalShiftGrid;
+#endif
+%inline %{
+GDALDatasetShadow* ApplyVerticalShiftGrid( GDALDatasetShadow *src_ds,
+                                           GDALDatasetShadow *grid_ds,
+                                           bool inverse = false,
+                                           double srcUnitToMeter = 1.0,
+                                           double dstUnitToMeter = 1.0,
+                                           char** options = NULL ) {
+  GDALDatasetShadow *ds = GDALApplyVerticalShiftGrid( src_ds, grid_ds,
+                                                      inverse,
+                                                      srcUnitToMeter,
+                                                      dstUnitToMeter,
+                                                      options );
+  return ds;
+
+}
+%}
+%clear GDALDatasetShadow *src_ds, GDALDatasetShadow *grid_ds;
+

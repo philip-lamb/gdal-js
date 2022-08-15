@@ -1,5 +1,4 @@
 /*
- * $Id$
  *  keamaskband.cpp
  *
  *  Created by Pete Bunting on 01/08/2012.
@@ -30,12 +29,14 @@
 
 #include "keamaskband.h"
 
+CPL_CVSID("$Id$")
+
 // constructor
 KEAMaskBand::KEAMaskBand(GDALRasterBand *pParent,
                 kealib::KEAImageIO *pImageIO, int *pRefCount)
 {
     m_nSrcBand = pParent->GetBand();
-    poDS = NULL;
+    poDS = nullptr;
     nBand = 0;
 
     nRasterXSize = pParent->GetXSize();
