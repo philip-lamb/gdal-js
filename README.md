@@ -131,6 +131,9 @@ This library exports the following GDAL functions:
 - GDALVectorTranslateOptionsFree
 - GDALVectorTranslateOptionsNew
 - GDALVectorTranslateOptionsSetProgress
+- GDALPolygonize
+- GDALFPolygonize
+- GDALSieveFilter
 
 For documentation of these functions' behavior, please see the
 [GDAL documentation](http://www.gdal.org/gdal_8h.html)

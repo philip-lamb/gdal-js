@@ -117,7 +117,10 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALVectorTranslate',\
   '_GDALVectorTranslateOptionsFree',\
   '_GDALVectorTranslateOptionsNew',\
-  '_GDALVectorTranslateOptionsSetProgress'\
+  '_GDALVectorTranslateOptionsSetProgress',\
+  '_GDALPolygonize',\
+  '_GDALFPolygonize',\
+  '_GDALSieveFilter'\
 ]"
 
 EXPORTED_RUNTIME_FUNCTIONS="[\
