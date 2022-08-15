@@ -23,6 +23,7 @@ A += --with-geotiff=internal
 A += --with-rename-internal-libtiff-symbols=yes
 A += --with-rename-internal-libgeotiff-symbols=yes
 A += --with-jpeg=internal
+A += --without-gnm
 A += --without-jpeg12
 A += --without-gif
 A += --without-ogdi
