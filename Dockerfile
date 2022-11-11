@@ -22,8 +22,8 @@ WORKDIR /opt/emsdk
 # In that case, replace "latest" below with "${EMSCRIPTEN_V}".
 ARG EMSCRIPTEN_V
 
-RUN ./emsdk install latest
-RUN ./emsdk activate latest
+RUN ./emsdk install ${EMSCRIPTEN_V}
+RUN ./emsdk activate ${EMSCRIPTEN_V}
 
 RUN git config --global user.name 'Nobody'
 RUN git config --global user.email 'nobody@nowhere.nope'
@@ -35,5 +35,6 @@ COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
 WORKDIR /opt/gdaljs
+RUN git config --global --add safe.directory /opt/gdaljs
 
 ENTRYPOINT ["/opt/entrypoint.sh"]
