@@ -28,6 +28,8 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALGetRasterMinimum',\
   '_GDALGetRasterMaximum',\
   '_GDALGetRasterNoDataValue',\
+  '_GDALRasterIO',\
+  '_GDALRasterIOEx',\
   '_GDALGetProjectionRef',\
   '_GDALSetProjection',\
   '_GDALGetGeoTransform',\
@@ -71,6 +73,8 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALDatasetGetLayerByName',\
   '_GDALDatasetGetLayerCount',\
   '_GDALDatasetExecuteSQL',\
+  '_GDALDatasetRasterIO',\
+  '_GDALDatasetRasterIOEx',\
   '_OGR_L_GetNextFeature',\
   '_OGR_L_GetExtent',\
   '_OGR_L_GetLayerDefn',\
