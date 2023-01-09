@@ -86,6 +86,14 @@ This library exports the following GDAL functions:
 - GDALDatasetGetLayerByName
 - GDALDatasetGetLayerCount
 - GDALDatasetExecuteSQL
+- GDALRasterIO
+- GDALRasterIOEx
+- GDALDatasetRasterIO
+- GDALDatasetRasterIOEx
+- GDALReadBlock
+- GDALWriteBlock
+- GDALGetBlockSize
+- GDALGetActualBlockSize
 - OGR\_L\_GetNextFeature
 - OGR\_L\_GetExtent
 - OGR\_L\_GetLayerDefn
