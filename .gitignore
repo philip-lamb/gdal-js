@@ -9,3 +9,6 @@ gdal/a.out
 gdal/a.out.js
 proj4/a.out
 proj4/a.out.js
+gdal.js
+gdal.data
+dist/*
