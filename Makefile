@@ -30,8 +30,6 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALGetRasterNoDataValue',\
   '_GDALRasterIO',\
   '_GDALRasterIOEx',\
-  '_GDALDatasetRasterIO',\
-  '_GDALDatasetRasterIOEx',\
   '_GDALReadBlock',\
   '_GDALWriteBlock',\
   '_GDALGetBlockSize',\
