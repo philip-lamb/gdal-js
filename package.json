@@ -1,6 +1,6 @@
 {
   "name": "gdal-js",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "GDAL compiled into WebAssembly for use in a web browser.",
   "main": "gdal.js",
   "directories": {
