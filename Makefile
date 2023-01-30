@@ -28,6 +28,9 @@ EXPORTED_FUNCTIONS = "[\
   '_GDALGetRasterMinimum',\
   '_GDALGetRasterMaximum',\
   '_GDALGetRasterNoDataValue',\
+  '_GDALGetDataTypeSizeBytes',\
+  '_GDALGetDataTypeByName',\
+  '_GDALGetDataTypeName',\
   '_GDALRasterIO',\
   '_GDALRasterIOEx',\
   '_GDALReadBlock',\

@@ -43,6 +43,15 @@ This library exports the following GDAL functions:
 - GDALGetRasterMinimum
 - GDALGetRasterMaximum
 - GDALGetRasterNoDataValue
+- GDALGetDataTypeSizeBytes
+- GDALGetDataTypeByName
+- GDALGetDataTypeName
+- GDALRasterIO
+- GDALRasterIOEx
+- GDALReadBlock
+- GDALWriteBlock
+- GDALGetBlockSize
+- GDALGetActualBlockSize
 - GDALGetProjectionRef
 - GDALSetProjection
 - GDALGetGeoTransform
