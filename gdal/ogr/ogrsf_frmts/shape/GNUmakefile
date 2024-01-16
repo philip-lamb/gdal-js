@@ -16,7 +16,7 @@ CXXFLAGS        :=      $(WARN_EFFCPLUSPLUS) $(WARN_OLD_STYLE_CAST) $(CXXFLAGS)
 
 default:	$(O_OBJ:.o=.$(OBJ_EXT))
 
-$(OBJ) $(O_OBJ):	ogrshape.h shapefil.h shpopen.c dbfopen.c shptree.c sbnsearch.c
+$(OBJ) $(O_OBJ):	ogrshape.h shapefil.h
 
 clean:
 	rm -f *.o $(O_OBJ)
